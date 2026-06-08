@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+@theme {
+  /* Palette — dark premium */
+  --color-ink: #08080a;
+  --color-surface: #101012;
+  --color-elevated: #17171b;
+  --color-bone: #f4f4f3;
+  --color-muted: #9a9aa2;
+  --color-faint: #5a5a62;
+  --color-volt: #d7ff3e;
+  --color-chrome: #33c6bd; /* teal del logo (visiera) */
+  --color-line: rgba(244, 244, 243, 0.10);
+
+  /* Tipografia */
+  --font-display: "Anton", "Arial Narrow", sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, monospace;
+
+  /* Easing */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--color-ink);
+    color: var(--color-bone);
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+  }
+  ::selection {
+    background: var(--color-volt);
+    color: #000;
+  }
+  /* Lenis gestisce lo scroll: niente smooth nativo che va in conflitto */
+  html.lenis, html.lenis body { height: auto; }
+  .lenis.lenis-smooth { scroll-behavior: auto !important; }
+  .lenis.lenis-stopped { overflow: hidden; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { scroll-behavior: auto !important; }
+  }
+}
+
+@layer utilities {
+  .font-display { font-family: var(--font-display); }
+  /* Titoli display: condensati, larghi, line-height stretto */
+  .display {
+    font-family: var(--font-display);
+    line-height: 0.86;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.28em;
+    font-size: 0.72rem;
+    color: var(--color-muted);
+  }
+  /* nasconde la scrollbar mantenendo lo scroll */
+  .no-bar::-webkit-scrollbar { display: none; }
+  .no-bar { scrollbar-width: none; }
+}
+
+/* ============================================================
+   Animazioni ambient: qualcosa si muove sempre, anche da fermi.
+   Tutte disattivate con prefers-reduced-motion.
+   ============================================================ */
+@layer utilities {
+  /* galleggiamento morbido su/giù */
+  @keyframes kr-float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-7px); }
+  }
+  /* respiro: scala + opacità, per i bagliori */
+  @keyframes kr-breathe {
+    0%, 100% { transform: scale(1);    opacity: 0.55; }
+    50%      { transform: scale(1.18); opacity: 0.9; }
+  }
+  /* pulsazione dei pallini di stato */
+  @keyframes kr-pulse {
+    0%, 100% { opacity: 1;   transform: scale(1); box-shadow: 0 0 0 0 rgba(215,255,62,0.55); }
+    50%      { opacity: 0.6; transform: scale(0.82); box-shadow: 0 0 0 6px rgba(215,255,62,0); }
+  }
+  /* gradiente che scorre (testo/sfondi) */
+  @keyframes kr-pan {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
+  /* flash della sezione di destinazione dopo lo scroll da un link interno */
+  @keyframes kr-target {
+    0%   { box-shadow: inset 0 0 0 3px rgba(215,255,62,0.7); }
+    100% { box-shadow: inset 0 0 0 3px rgba(215,255,62,0); }
+  }
+  .kr-flash { animation: kr-target 1.2s ease-out; }
+
+  /* oscillazione leggera (emoji, accenti) */
+  @keyframes kr-sway {
+    0%, 100% { transform: rotate(-6deg); }
+    50%      { transform: rotate(6deg); }
+  }
+  /* alone pulsante per il pulsante volt */
+  @keyframes kr-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(215,255,62,0.5), 0 0 18px 2px rgba(215,255,62,0.25); }
+    50%      { box-shadow: 0 0 0 8px rgba(215,255,62,0), 0 0 26px 6px rgba(215,255,62,0.45); }
+  }
+  /* bordo che cambia colore + alone teal per il pulsante outline */
+  @keyframes kr-border {
+    0%, 100% { border-color: rgba(244,244,243,0.3); box-shadow: 0 0 0 0 rgba(51,198,189,0); }
+    50%      { border-color: var(--color-chrome);   box-shadow: 0 0 18px 2px rgba(51,198,189,0.4); }
+  }
+
+  .anim-glow   { animation: kr-glow 2.8s ease-in-out infinite; }
+  .anim-border { animation: kr-border 3.2s ease-in-out infinite; }
+  .anim-float  { animation: kr-float 6s ease-in-out infinite; }
+  .anim-breathe { animation: kr-breathe 5s ease-in-out infinite; }
+  .anim-pulse  { animation: kr-pulse 2.4s ease-in-out infinite; }
+  .anim-sway   { animation: kr-sway 4s ease-in-out infinite; transform-origin: 70% 70%; display: inline-block; }
+
+  /* gradiente animato per i numeri/accenti volt */
+  .anim-shimmer {
+    background: linear-gradient(100deg, var(--color-volt) 0%, var(--color-chrome) 40%, var(--color-volt) 80%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: kr-pan 4.5s linear infinite;
+  }
+
+  /* sfasamenti così non pulsano tutti all'unisono */
+  .anim-d1 { animation-delay: -0.6s; }
+  .anim-d2 { animation-delay: -1.2s; }
+  .anim-d3 { animation-delay: -1.8s; }
+  .anim-d4 { animation-delay: -2.4s; }
+  .anim-d5 { animation-delay: -3.0s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .anim-float, .anim-breathe, .anim-pulse, .anim-sway, .anim-shimmer,
+    .anim-glow, .anim-border {
+      animation: none !important;
+    }
+    .anim-shimmer { color: var(--color-volt); }
+  }
+}
