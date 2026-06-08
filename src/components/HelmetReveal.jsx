@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { asset } from "../lib/asset";
 
 // Porta in React l'effetto "lente" del prototipo caschi-reveal:
 // base = sottocasco, il casco viene rivelato dalla scia del mouse su un canvas
@@ -30,7 +31,7 @@ export default function HelmetReveal({ fill = false, hideHint = false }) {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     const helmet = new Image();
-    helmet.src = "/img/casco-oro.png";
+    helmet.src = asset("/img/casco-oro.png");
 
     let W = 0, H = 0, radius = RADIUS_MIN, fade = FADE_SPEED;
     let curX = 0, curY = 0;
@@ -210,7 +211,7 @@ export default function HelmetReveal({ fill = false, hideHint = false }) {
       style={fill ? undefined : { aspectRatio: "1408 / 768" }}
     >
       <img
-        src="/img/sottocasco.png"
+        src={asset("/img/sottocasco.png")}
         alt="Modello KROMA con sottocasco"
         className="pointer-events-none absolute inset-0 h-full w-full object-cover"
         draggable={false}

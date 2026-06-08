@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { gsap, ScrollTrigger } from "../lib/gsap";
+import { asset } from "../lib/asset";
 
 const SPECS = [
   ["01", "Sistema VAS", "Variable Axis System: il perno della visiera è ribassato e arretrato. Calotta più liscia e uniforme, campo visivo più ampio. 🦈"],
@@ -69,7 +70,7 @@ export default function Showcase() {
           <div className="showcase-glow anim-breathe absolute h-72 w-72 rounded-full bg-volt/25 blur-3xl" />
           <div className="showcase-visual relative aspect-[4/5] w-full max-w-md overflow-hidden rounded-3xl border border-line bg-ink">
             <img
-              src="/img/rider.jpg"
+              src={asset("/img/rider.jpg")}
               alt="Rider con casco Arai SZ-R EVO in città"
               className="h-full w-full object-cover object-[28%_30%]"
               draggable={false}
