@@ -72,12 +72,16 @@ export default function Hero() {
 
       {compact ? (
         <>
-          {/* Titolo: centrato esattamente sulla visiera del casco */}
-          <div className="pointer-events-none absolute inset-x-0 top-[44%] z-20 -translate-y-1/2 px-6 text-center">
-            <p className="hero-eyebrow mb-3 font-display text-[0.8rem] tracking-[0.3em] text-volt uppercase [text-shadow:0_1px_10px_rgba(0,0,0,.7)]">
+          {/* Eyebrow: appena sopra la visiera */}
+          <div className="pointer-events-none absolute inset-x-0 top-[24%] z-20 px-6 text-center">
+            <p className="hero-eyebrow font-display text-[0.8rem] tracking-[0.3em] text-volt uppercase [text-shadow:0_1px_10px_rgba(0,0,0,.7)]">
               <span className="anim-sway">🦈</span> Caschi da abisso · ARAI
             </p>
-            <h1 className="display text-bone text-[clamp(2.3rem,11vw,4rem)] leading-[0.94] [text-shadow:0_2px_28px_rgba(0,0,0,.85)]">
+          </div>
+
+          {/* Titolo: riempie la visiera dall'alto in basso (in altezza, non in larghezza) */}
+          <div className="pointer-events-none absolute inset-x-0 top-[31%] bottom-[38%] z-20 px-6 text-center">
+            <h1 className="display flex h-full flex-col justify-between text-bone text-[clamp(2.3rem,11vw,4rem)] leading-[0.86] [text-shadow:0_2px_28px_rgba(0,0,0,.85)]">
               <span className="hero-line block overflow-hidden"><span className="block">Proteggi</span></span>
               <span className="hero-line block overflow-hidden"><span className="block text-volt">l'istinto</span></span>
               <span className="hero-line block overflow-hidden"><span className="block">selvaggio</span></span>
