@@ -70,13 +70,39 @@ export default function Hero() {
         </span>
       )}
 
-      {/* titolo sovrapposto in basso — i puntatori passano al reveal, tranne i link */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20">
-        <div className="mx-auto max-w-[1400px] px-6 pb-10 lg:px-10 lg:pb-16">
+      {/* Testo: in basso su desktop; centrato sulla visiera su schermi <1011px */}
+      <div
+        className={
+          "pointer-events-none z-20 " +
+          (compact
+            ? "absolute inset-0 flex items-center justify-center"
+            : "absolute inset-x-0 bottom-0")
+        }
+      >
+        <div
+          className={
+            compact
+              ? "mx-auto w-full max-w-[1400px] px-6 text-center"
+              : "mx-auto max-w-[1400px] px-6 pb-10 lg:px-10 lg:pb-16"
+          }
+        >
           <p className="hero-eyebrow mb-5 font-display text-base tracking-[0.4em] text-volt uppercase"><span className="anim-sway">🦈</span> Caschi da abisso · ARAI</p>
 
-          <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-            <h1 className="display text-bone text-[clamp(2.8rem,9vw,7.5rem)]">
+          <div
+            className={
+              compact
+                ? "flex flex-col items-center gap-7"
+                : "flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between"
+            }
+          >
+            <h1
+              className={
+                "display text-bone " +
+                (compact
+                  ? "text-[clamp(2.4rem,11vw,4rem)] [text-shadow:0_2px_26px_rgba(0,0,0,.7)]"
+                  : "text-[clamp(2.8rem,9vw,7.5rem)]")
+              }
+            >
               <span className="hero-line block overflow-hidden">
                 <span className="block">Proteggi</span>
               </span>
@@ -88,12 +114,12 @@ export default function Hero() {
               </span>
             </h1>
 
-            <div className="max-w-sm lg:pb-3">
+            <div className={compact ? "mx-auto max-w-sm" : "max-w-sm lg:pb-3"}>
               <p className="hero-copy rounded-xl bg-black/45 px-4 py-3 text-sm leading-relaxed text-bone/90 backdrop-blur-md">
                 KROMA porta i caschi ARAI: spariscono quando li indossi e dominano
                 quando li guardi. Ingegneria da MotoGP, zero compromessi. 🦈
               </p>
-              <div className="hero-cta mt-6 flex flex-wrap items-center gap-3">
+              <div className={"hero-cta mt-6 flex flex-wrap items-center gap-3 " + (compact ? "justify-center" : "")}>
                 <a
                   href="#collezione"
                   className="anim-glow pointer-events-auto rounded-full bg-volt px-7 py-3.5 font-mono text-sm font-bold tracking-wider text-black uppercase transition-transform duration-300 hover:-translate-y-0.5"
