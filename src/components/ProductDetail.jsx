@@ -46,7 +46,7 @@ export default function ProductDetail() {
       />
       <div
         ref={panel}
-        className="relative grid max-h-[90vh] w-full max-w-4xl grid-cols-1 overflow-hidden rounded-3xl border border-line bg-elevated md:grid-cols-2"
+        className="relative grid max-h-[90vh] w-full max-w-4xl grid-cols-1 overflow-y-auto overscroll-contain rounded-3xl border border-line bg-elevated md:grid-cols-2 md:overflow-hidden"
       >
         <button
           onClick={closeProduct}
@@ -56,7 +56,7 @@ export default function ProductDetail() {
           ✕
         </button>
 
-        <div className="relative aspect-square overflow-hidden bg-gradient-to-b from-[#f4f4f3] to-[#cfcfcb] md:aspect-auto">
+        <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-b from-[#f4f4f3] to-[#cfcfcb] md:aspect-auto">
           <HelmetFlip
             key={v.code}
             front={v.img}
@@ -69,7 +69,7 @@ export default function ProductDetail() {
           />
         </div>
 
-        <div className="flex flex-col gap-6 overflow-y-auto p-8">
+        <div className="flex flex-col gap-6 p-8 md:min-h-0 md:overflow-y-auto">
           <div>
             {v.bestSeller && (
               <span className="anim-pulse mb-3 inline-flex items-center gap-1.5 rounded-full bg-volt px-3 py-1.5 font-mono text-[0.62rem] font-bold tracking-[0.14em] text-black uppercase">
