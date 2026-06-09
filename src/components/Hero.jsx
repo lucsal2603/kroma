@@ -80,7 +80,7 @@ export default function Hero() {
           </div>
 
           {/* Titolo: parole attaccate, lettere stirate in altezza per riempire la visiera */}
-          <div className="pointer-events-none absolute inset-x-0 top-[35%] bottom-[34%] z-20 flex items-center justify-center px-6 text-center">
+          <div className="pointer-events-none absolute inset-x-0 top-[33%] bottom-[36%] z-20 flex items-center justify-center px-6 text-center">
             <h1 className="display origin-center scale-y-[1.45] text-bone text-[clamp(2.6rem,13vw,4.6rem)] leading-[0.82] [text-shadow:0_2px_28px_rgba(0,0,0,.85)]">
               <span className="hero-line block overflow-hidden"><span className="block">Proteggi</span></span>
               <span className="hero-line block overflow-hidden"><span className="block text-volt">l'istinto</span></span>
