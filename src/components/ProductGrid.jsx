@@ -27,13 +27,17 @@ export default function ProductGrid() {
           <span
             key={b.name}
             className={
-              "flex items-center gap-2 rounded-full border px-4 py-2 font-mono text-xs tracking-[0.14em] uppercase " +
+              "inline-flex items-center gap-2 rounded-full border px-4 py-2 font-mono text-xs tracking-[0.14em] uppercase transition-colors " +
               (b.active
                 ? "border-volt/50 bg-volt/10 text-bone"
                 : "border-line text-faint")
             }
           >
-            <span className={"h-1.5 w-1.5 rounded-full " + (b.active ? "bg-volt anim-pulse" : "bg-faint")} />
+            {b.active && (
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="shrink-0 text-volt">
+                <path d="M20 6 9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
             {b.name}
             <span className="text-[0.6rem] opacity-60">· {b.note}</span>
           </span>
