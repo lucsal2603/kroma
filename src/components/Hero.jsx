@@ -1,9 +1,21 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { gsap } from "../lib/gsap";
 import HelmetReveal from "./HelmetReveal";
+import { asset } from "../lib/asset";
 
 export default function Hero() {
   const root = useRef(null);
+  // Sotto i 1011px l'effetto "lente" col mouse non ha senso (touch / schermo piccolo):
+  // mostriamo l'immagine del rider come sfondo statico.
+  const [compact, setCompact] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1011px)");
+    const update = () => setCompact(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -23,7 +35,16 @@ export default function Hero() {
 
   return (
     <section ref={root} className="relative h-svh min-h-[620px] w-full overflow-hidden">
-      <HelmetReveal fill hideHint />
+      {compact ? (
+        <div
+          className="absolute inset-0 bg-cover bg-[center_28%]"
+          style={{ backgroundImage: `url(${asset("/img/rider.jpg")})` }}
+          aria-label="Rider con casco KROMA in moto"
+          role="img"
+        />
+      ) : (
+        <HelmetReveal fill hideHint />
+      )}
 
       {/* scrim: scurisce alto (nav) e basso (titolo), lascia libero il volto al centro */}
       <div
@@ -34,9 +55,11 @@ export default function Hero() {
         }}
       />
 
-      <span className="hero-hint anim-float pointer-events-none absolute top-24 right-6 z-20 rounded-full bg-black/40 px-4 py-2 font-mono text-[0.7rem] tracking-[0.16em] text-bone/80 uppercase backdrop-blur-sm transition-opacity duration-300 lg:right-10">
-        <span className="anim-sway">🦈</span> Muovi il mouse
-      </span>
+      {!compact && (
+        <span className="hero-hint anim-float pointer-events-none absolute top-24 right-6 z-20 rounded-full bg-black/40 px-4 py-2 font-mono text-[0.7rem] tracking-[0.16em] text-bone/80 uppercase backdrop-blur-sm transition-opacity duration-300 lg:right-10">
+          <span className="anim-sway">🦈</span> Muovi il mouse
+        </span>
+      )}
 
       {/* titolo sovrapposto in basso — i puntatori passano al reveal, tranne i link */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20">
