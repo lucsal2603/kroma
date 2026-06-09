@@ -19,6 +19,11 @@ export default function ProductDetail() {
     const onKey = (e) => e.key === "Escape" && closeProduct();
     window.addEventListener("keydown", onKey);
 
+    // blocca lo scroll dello sfondo mentre il modale è aperto
+    window.__lenis?.stop();
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
     let ctx;
     if (!reduce) {
       ctx = gsap.context(() => {
@@ -29,6 +34,8 @@ export default function ProductDetail() {
     return () => {
       window.removeEventListener("keydown", onKey);
       ctx?.revert();
+      window.__lenis?.start();
+      document.body.style.overflow = prevOverflow;
     };
   }, [product, closeProduct]);
 
@@ -46,6 +53,7 @@ export default function ProductDetail() {
       />
       <div
         ref={panel}
+        data-lenis-prevent
         className="relative grid max-h-[90vh] w-full max-w-4xl grid-cols-1 overflow-y-auto overscroll-contain rounded-3xl border border-line bg-elevated md:grid-cols-2 md:overflow-hidden"
       >
         <button
@@ -67,15 +75,15 @@ export default function ProductDetail() {
             className="absolute inset-0 h-full w-full"
             imgClass="h-full w-full object-contain p-6"
           />
+          {v.bestSeller && (
+            <span className="absolute top-3 left-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1.5 font-mono text-[0.56rem] font-bold tracking-[0.14em] text-volt uppercase backdrop-blur-sm">
+              🦈 #1 più acquistato
+            </span>
+          )}
         </div>
 
         <div className="flex flex-col gap-6 p-8 md:min-h-0 md:overflow-y-auto">
           <div>
-            {v.bestSeller && (
-              <span className="anim-pulse mb-3 inline-flex items-center gap-1.5 rounded-full bg-volt px-3 py-1.5 font-mono text-[0.62rem] font-bold tracking-[0.14em] text-black uppercase">
-                🦈 #1 più acquistato
-              </span>
-            )}
             <div className="eyebrow text-[0.6rem]">{v.brand} · {v.model} · {v.color}</div>
             <h2 className="font-display mt-2 text-5xl text-bone">{v.name}</h2>
             <div className="text-muted mt-1 font-mono text-xs">{v.code}</div>

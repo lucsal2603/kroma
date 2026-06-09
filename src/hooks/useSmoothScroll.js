@@ -16,6 +16,9 @@ export function useSmoothScroll() {
       touchMultiplier: 1.6,
     });
 
+    // esposta globalmente così i modali possono fermarla (blocco scroll sfondo)
+    window.__lenis = lenis;
+
     lenis.on("scroll", ScrollTrigger.update);
     const onTick = (time) => lenis.raf(time * 1000);
     gsap.ticker.add(onTick);
@@ -59,6 +62,7 @@ export function useSmoothScroll() {
 
     return () => {
       gsap.ticker.remove(onTick);
+      if (window.__lenis === lenis) delete window.__lenis;
       lenis.destroy();
       document.removeEventListener("click", onClick);
       window.removeEventListener("load", refresh);
