@@ -64,7 +64,7 @@ export default function ProductDetail() {
           ✕
         </button>
 
-        <div className="relative aspect-[16/10] max-h-[42vh] overflow-hidden bg-gradient-to-b from-[#f4f4f3] to-[#cfcfcb] md:aspect-auto md:max-h-none">
+        <div className="relative aspect-[16/9] max-h-[40vh] overflow-hidden bg-gradient-to-b from-[#f4f4f3] to-[#cfcfcb] md:aspect-auto md:max-h-none">
           <HelmetFlip
             key={v.code}
             front={v.img}
@@ -82,7 +82,7 @@ export default function ProductDetail() {
           )}
         </div>
 
-        <div className="flex flex-col gap-5 p-6 sm:gap-6 sm:p-8 md:min-h-0 md:overflow-y-auto">
+        <div className="flex flex-col gap-5 px-6 pb-6 pt-9 sm:gap-6 sm:p-8 md:min-h-0 md:overflow-y-auto">
           <div>
             <div className="eyebrow text-[0.6rem]">{v.brand} · {v.model} · {v.color}</div>
             <h2 className="font-display mt-2 text-5xl text-bone">{v.name}</h2>
