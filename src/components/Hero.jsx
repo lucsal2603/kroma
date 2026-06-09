@@ -36,12 +36,21 @@ export default function Hero() {
   return (
     <section ref={root} className="relative h-svh min-h-[620px] w-full overflow-hidden">
       {compact ? (
-        <div
-          className="absolute inset-0 bg-cover bg-[center_28%]"
-          style={{ backgroundImage: `url(${asset("/img/rider.jpg")})` }}
-          aria-label="Rider con casco KROMA in moto"
-          role="img"
-        />
+        // Versione ferma: il casco già indossato (faccia + casco d'oro sopra), senza reveal interattivo.
+        <div className="absolute inset-0" role="img" aria-label="Modello con casco KROMA">
+          <img
+            src={asset("/img/sottocasco.png")}
+            alt=""
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+            draggable={false}
+          />
+          <img
+            src={asset("/img/casco-oro.png")}
+            alt=""
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+            draggable={false}
+          />
+        </div>
       ) : (
         <HelmetReveal fill hideHint />
       )}
