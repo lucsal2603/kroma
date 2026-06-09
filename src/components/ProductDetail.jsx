@@ -64,7 +64,7 @@ export default function ProductDetail() {
           ✕
         </button>
 
-        <div className="relative aspect-[16/9] max-h-[40vh] overflow-hidden bg-gradient-to-b from-[#f4f4f3] to-[#cfcfcb] md:aspect-auto md:max-h-none">
+        <div className="relative aspect-[5/4] max-h-[48vh] overflow-hidden bg-gradient-to-b from-[#f4f4f3] to-[#cfcfcb] md:aspect-auto md:max-h-none">
           <HelmetFlip
             key={v.code}
             front={v.img}
@@ -73,7 +73,7 @@ export default function ProductDetail() {
             controls
             interval={3200}
             className="absolute inset-0 h-full w-full"
-            imgClass="h-full w-full object-contain p-6"
+            imgClass="h-full w-full object-contain p-3 sm:p-6"
           />
           {v.bestSeller && (
             <span className="absolute top-3 left-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1.5 font-mono text-[0.56rem] font-bold tracking-[0.14em] text-volt uppercase backdrop-blur-sm">
