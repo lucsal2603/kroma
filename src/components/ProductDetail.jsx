@@ -91,14 +91,6 @@ export default function ProductDetail() {
 
           <p className="text-muted text-sm leading-relaxed">{v.blurb}</p>
 
-          <ul className="flex flex-col gap-2 border-y border-line py-5">
-            {v.specs.map((s) => (
-              <li key={s} className="flex items-center gap-3 text-sm text-bone/85">
-                <span className="text-volt">▸</span> {s}
-              </li>
-            ))}
-          </ul>
-
           <div>
             <div className="eyebrow mb-3 text-[0.6rem]">Colore · {v.color}</div>
             <div className="flex gap-3">
