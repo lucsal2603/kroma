@@ -7,7 +7,7 @@ const euro = (n) => "€ " + Number(n).toFixed(2).replace(".", ",");
  * Costruisce l'HTML della conferma ordine.
  * @param {{id:string, total:number, items:Array, customerName?:string}} order
  */
-export function renderOrderEmail({ id, total, items, customerName }) {
+export function renderOrderEmail({ id, total, items, customerName, shipping }) {
   const rows = items
     .map(
       (i) => `
@@ -20,6 +20,18 @@ export function renderOrderEmail({ id, total, items, customerName }) {
       </tr>`
     )
     .join("");
+
+  const shippingHtml = shipping
+    ? `
+      <div style="margin:18px 0;padding:14px 16px;background:#f6f6f4;border-radius:10px">
+        <p style="margin:0 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#888">Spedizione</p>
+        <p style="margin:0;line-height:1.5">
+          <strong>${shipping.name}</strong><br>
+          ${shipping.address}<br>
+          ${shipping.zip} ${shipping.city} (${shipping.province})${shipping.phone ? `<br>Tel: ${shipping.phone}` : ""}
+        </p>
+      </div>`
+    : "";
 
   const html = `
   <div style="font-family:system-ui,Arial,sans-serif;max-width:560px;margin:auto;color:#111">
@@ -36,6 +48,7 @@ export function renderOrderEmail({ id, total, items, customerName }) {
           <td style="padding:14px 0 0;text-align:right;font-weight:700">${euro(total)}</td>
         </tr>
       </table>
+      ${shippingHtml}
       <p style="color:#666;font-size:13px">Ti avviseremo appena il tuo casco sarà spedito. A presto su strada.</p>
     </div>
   </div>`;
@@ -43,7 +56,12 @@ export function renderOrderEmail({ id, total, items, customerName }) {
   const text =
     `KROMA — Ordine confermato\nOrdine #${String(id).slice(0, 8).toUpperCase()}\n\n` +
     items.map((i) => `- ${i.name} (${i.color}, ${i.size}) x${i.quantity} = ${euro(i.subtotal)}`).join("\n") +
-    `\n\nTotale: ${euro(total)}\nGrazie per il tuo ordine!`;
+    `\n\nTotale: ${euro(total)}` +
+    (shipping
+      ? `\n\nSpedizione:\n${shipping.name}\n${shipping.address}\n${shipping.zip} ${shipping.city} (${shipping.province})` +
+        (shipping.phone ? `\nTel: ${shipping.phone}` : "")
+      : "") +
+    `\n\nGrazie per il tuo ordine!`;
 
   return { html, text };
 }

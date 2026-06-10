@@ -69,6 +69,7 @@ create table if not exists orders (
                              check (status in ('pending','paid','failed','shipped','cancelled')),
   total                    numeric(10,2) not null default 0,    -- EUR
   customer_email           text        not null,                -- email cliente (snapshot)
+  shipping                 jsonb,                               -- indirizzo di consegna {name,address,zip,city,province,phone}
   stripe_payment_intent_id text,                                -- riferimento pagamento Stripe
   created_at               timestamptz not null default now()
 );

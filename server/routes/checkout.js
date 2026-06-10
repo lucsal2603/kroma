@@ -27,6 +27,21 @@ router.post("/checkout", requireAuth, async (req, res) => {
 
     const customerEmail = (req.body?.email || user.email).trim().toLowerCase();
 
+    // Dati di spedizione (obbligatori per poter spedire)
+    const ship = req.body?.shipping || {};
+    const shipping = {
+      name: String(ship.name || "").trim(),
+      address: String(ship.address || "").trim(),
+      zip: String(ship.zip || "").trim(),
+      city: String(ship.city || "").trim(),
+      province: String(ship.province || "").trim().toUpperCase(),
+      phone: String(ship.phone || "").trim(),
+    };
+    const missing = ["name", "address", "zip", "city", "province"].filter((k) => !shipping[k]);
+    if (missing.length) {
+      return res.status(400).json({ error: "Dati di spedizione mancanti." });
+    }
+
     // Carrello con dati prodotto
     const cartRes = await client.query(
       `select ci.product_id, ci.size, ci.quantity,
@@ -57,10 +72,10 @@ router.post("/checkout", requireAuth, async (req, res) => {
     await client.query("begin");
 
     const orderRes = await client.query(
-      `insert into orders (user_id, status, total, customer_email)
-       values ($1, 'pending', $2, $3)
+      `insert into orders (user_id, status, total, customer_email, shipping)
+       values ($1, 'pending', $2, $3, $4)
        returning id, created_at`,
-      [req.user.id, total, customerEmail]
+      [req.user.id, total, customerEmail, JSON.stringify(shipping)]
     );
     const orderId = orderRes.rows[0].id;
 
@@ -114,6 +129,7 @@ router.post("/checkout", requireAuth, async (req, res) => {
         total,
         items,
         customerName: user.username,
+        shipping,
       }).catch((e) => console.error("order email error:", e.message));
 
       // Notifica al titolare
@@ -121,6 +137,12 @@ router.post("/checkout", requireAuth, async (req, res) => {
         `🦈 <b>Nuovo ordine KROMA</b>\n` +
         `#${String(orderId).slice(0, 8).toUpperCase()} · ${euro(total)}\n` +
         `Cliente: ${user.username} (${customerEmail})\n\n` +
+        `📦 <b>Spedire a:</b>\n` +
+        `${shipping.name}\n` +
+        `${shipping.address}\n` +
+        `${shipping.zip} ${shipping.city} (${shipping.province})\n` +
+        (shipping.phone ? `Tel: ${shipping.phone}\n` : "") +
+        `\n` +
         items.map((i) => `• ${i.name} ${i.color} · ${i.size} ×${i.quantity}`).join("\n");
       sendTelegram(tg).catch((e) => console.error("telegram error:", e.message));
     }
@@ -145,7 +167,7 @@ router.post("/checkout", requireAuth, async (req, res) => {
 router.get("/orders", requireAuth, async (req, res) => {
   try {
     const { rows } = await query(
-      `select o.id, o.status, o.total, o.created_at,
+      `select o.id, o.status, o.total, o.created_at, o.shipping,
               coalesce(json_agg(
                 json_build_object(
                   'name', p.name, 'color', p.color, 'size', oi.size,

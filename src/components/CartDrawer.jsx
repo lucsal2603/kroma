@@ -12,6 +12,17 @@ export default function CartDrawer() {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
   const [orderId, setOrderId] = useState(null);
+  const [ship, setShip] = useState({
+    name: "",
+    address: "",
+    zip: "",
+    city: "",
+    province: "",
+    phone: "",
+  });
+
+  const setShipField = (field) => (e) =>
+    setShip((s) => ({ ...s, [field]: e.target.value }));
 
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && handleClose();
@@ -44,6 +55,20 @@ export default function CartDrawer() {
       setError("Ricarica la pagina e riprova: alcuni articoli non sono collegati al catalogo.");
       return;
     }
+    // Controllo dei dati di consegna
+    const required = ["name", "address", "zip", "city", "province"];
+    if (required.some((k) => !ship[k].trim())) {
+      setError("Compila tutti i dati di consegna (telefono escluso).");
+      return;
+    }
+    if (!/^\d{5}$/.test(ship.zip.trim())) {
+      setError("Il CAP deve avere 5 cifre.");
+      return;
+    }
+    if (ship.province.trim().length !== 2) {
+      setError("La provincia va indicata con la sigla di 2 lettere (es. BS).");
+      return;
+    }
     setError("");
     setProcessing(true);
     try {
@@ -52,7 +77,7 @@ export default function CartDrawer() {
       for (const it of items) {
         await api.addToCart(it.productId, it.size, it.qty);
       }
-      const { order, paid } = await api.checkout();
+      const { order, paid } = await api.checkout({ shipping: ship });
       if (!paid) {
         setError("Pagamento non completato. Riprova.");
         return;
@@ -77,6 +102,7 @@ export default function CartDrawer() {
       setProcessing(false);
       setError("");
       setOrderId(null);
+      setShip({ name: "", address: "", zip: "", city: "", province: "", phone: "" });
     }, 500);
   };
 
@@ -151,6 +177,65 @@ export default function CartDrawer() {
             >
               ‹ Torna al carrello
             </button>
+
+            <div className="mt-5">
+              <p className="eyebrow mb-3 text-[0.6rem]">📦 Dove spediamo</p>
+              <div className="flex flex-col gap-2.5">
+                <input
+                  value={ship.name}
+                  onChange={setShipField("name")}
+                  placeholder="Nome e cognome"
+                  aria-label="Nome e cognome"
+                  autoComplete="name"
+                  className="rounded-2xl border border-line bg-ink px-4 py-3 font-mono text-sm text-bone placeholder:text-faint transition-colors focus:border-volt/60 focus:outline-none"
+                />
+                <input
+                  value={ship.address}
+                  onChange={setShipField("address")}
+                  placeholder="Via e numero civico"
+                  aria-label="Indirizzo"
+                  autoComplete="street-address"
+                  className="rounded-2xl border border-line bg-ink px-4 py-3 font-mono text-sm text-bone placeholder:text-faint transition-colors focus:border-volt/60 focus:outline-none"
+                />
+                <div className="flex gap-2.5">
+                  <input
+                    value={ship.zip}
+                    onChange={setShipField("zip")}
+                    placeholder="CAP"
+                    aria-label="CAP"
+                    inputMode="numeric"
+                    autoComplete="postal-code"
+                    className="w-24 rounded-2xl border border-line bg-ink px-4 py-3 font-mono text-sm text-bone placeholder:text-faint transition-colors focus:border-volt/60 focus:outline-none"
+                  />
+                  <input
+                    value={ship.city}
+                    onChange={setShipField("city")}
+                    placeholder="Città"
+                    aria-label="Città"
+                    autoComplete="address-level2"
+                    className="flex-1 rounded-2xl border border-line bg-ink px-4 py-3 font-mono text-sm text-bone placeholder:text-faint transition-colors focus:border-volt/60 focus:outline-none"
+                  />
+                  <input
+                    value={ship.province}
+                    onChange={setShipField("province")}
+                    placeholder="PR"
+                    aria-label="Provincia"
+                    maxLength={2}
+                    autoComplete="address-level1"
+                    className="w-16 rounded-2xl border border-line bg-ink px-3 py-3 text-center font-mono text-sm text-bone uppercase placeholder:text-faint transition-colors focus:border-volt/60 focus:outline-none"
+                  />
+                </div>
+                <input
+                  value={ship.phone}
+                  onChange={setShipField("phone")}
+                  placeholder="Telefono (per il corriere)"
+                  aria-label="Telefono"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  className="rounded-2xl border border-line bg-ink px-4 py-3 font-mono text-sm text-bone placeholder:text-faint transition-colors focus:border-volt/60 focus:outline-none"
+                />
+              </div>
+            </div>
 
             <div className="mt-5 rounded-2xl border border-line bg-ink px-5 py-4 font-mono text-xs">
               <div className="flex justify-between text-muted">
