@@ -63,6 +63,7 @@ export default function ProductGrid() {
               <HelmetFlip
                 front={p.img}
                 back={p.imgBack}
+                images={p.gallery}
                 alt={[p.brand, p.model, p.color, p.name].filter(Boolean).join(" ")}
                 interval={3600}
                 offset={i * 1200}

@@ -19,6 +19,7 @@ function toProduct(r) {
     stock: r.stock ?? 0,
     img: r.img_url,
     imgBack: r.img_back_url,
+    gallery: r.gallery || [],
     swatch: r.swatch,
     tag: r.tag,
     bestSeller: r.best_seller,

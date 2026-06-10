@@ -12,7 +12,8 @@ function toProduct(r) {
   return {
     id: r.id, code: r.code, name: r.name, brand: r.brand, model: r.model,
     color: r.color, price: Number(r.price), stock: r.stock ?? 0,
-    img: r.img_url, imgBack: r.img_back_url, swatch: r.swatch, tag: r.tag,
+    img: r.img_url, imgBack: r.img_back_url, gallery: r.gallery || [],
+    swatch: r.swatch, tag: r.tag,
     bestSeller: r.best_seller, blurb: r.blurb, specs: r.specs || [],
   };
 }
@@ -20,6 +21,29 @@ function toProduct(r) {
 // Accetta data URL di immagini (foto caricata dall'admin) oppure un URL http.
 const isValidImage = (s) =>
   typeof s === "string" && /^(data:image\/|https?:\/\/)/.test(s.trim());
+
+// Normalizza la lista di foto: accetta `images` (array) oppure i vecchi
+// `img`/`imgBack`. Restituisce un array di stringhe valide (la prima è la
+// copertina). Lancia un errore con statusCode 400 se non è valida.
+function normalizeImages(b) {
+  let images = Array.isArray(b.images)
+    ? b.images.map((s) => String(s || "").trim()).filter(Boolean)
+    : [];
+  if (!images.length) {
+    images = [String(b.img || "").trim(), String(b.imgBack || "").trim()].filter(Boolean);
+  }
+  if (!images.length) {
+    const e = new Error("Serve almeno una foto del prodotto.");
+    e.statusCode = 400;
+    throw e;
+  }
+  if (!images.every(isValidImage)) {
+    const e = new Error("Una delle foto non è valida.");
+    e.statusCode = 400;
+    throw e;
+  }
+  return images;
+}
 
 const router = Router();
 
@@ -69,42 +93,47 @@ router.post("/admin/products", async (req, res) => {
     const price = Number(req.body?.price);
     const blurb = String(req.body?.blurb || "").trim();
     const tag = String(req.body?.tag || "").trim();
-    const img = String(req.body?.img || "").trim();
-    const imgBack = String(req.body?.imgBack || "").trim();
     const stockRaw = req.body?.stock;
     const stock = stockRaw === undefined || stockRaw === "" ? 0 : Number(stockRaw);
 
     if (!name) return res.status(400).json({ error: "Il nome è obbligatorio." });
     if (!Number.isFinite(price) || price <= 0)
       return res.status(400).json({ error: "Il prezzo deve essere un numero maggiore di 0." });
-    if (!isValidImage(img))
-      return res.status(400).json({ error: "Serve una foto del prodotto." });
-    if (imgBack && !isValidImage(imgBack))
-      return res.status(400).json({ error: "La seconda foto non è valida." });
     if (!Number.isInteger(stock) || stock < 0)
       return res.status(400).json({ error: "La giacenza deve essere un numero intero ≥ 0." });
 
+    const images = normalizeImages(req.body || {}); // copertina = images[0]
+    const img = images[0];
+    const imgBack = images[1] || null;
+
     // Genera un code unico; in caso (rarissimo) di collisione, riprova.
+    // useGallery=false ripiega se la colonna gallery non è ancora migrata.
     let row = null;
-    for (let attempt = 0; attempt < 5 && !row; attempt++) {
+    let useGallery = true;
+    for (let attempt = 0; attempt < 8 && !row; attempt++) {
       const code = "KR-" + Date.now().toString(36).toUpperCase() + Math.floor(Math.random() * 1000);
+      const cols = "code, name, brand, model, color, price, stock, img_url, img_back_url, tag, best_seller, blurb, specs"
+        + (useGallery ? ", gallery" : "");
+      const vals = [code, name, brand, price, stock, img, imgBack, tag || null, blurb || null];
+      const placeholders = "$1,$2,$3,'','',$4,$5,$6,$7,$8,false,$9,'[]'::jsonb"
+        + (useGallery ? `,$${vals.length + 1}` : "");
+      if (useGallery) vals.push(JSON.stringify(images));
       try {
         const { rows } = await query(
-          `insert into products
-             (code, name, brand, model, color, price, stock, img_url, img_back_url, tag, best_seller, blurb, specs)
-           values ($1,$2,$3,'','',$4,$5,$6,$7,$8,false,$9,'[]'::jsonb)
-           returning *`,
-          [code, name, brand, price, stock, img, imgBack || null, tag || null, blurb || null]
+          `insert into products (${cols}) values (${placeholders}) returning *`,
+          vals
         );
         row = rows[0];
       } catch (e) {
-        if (e.code === "23505") continue; // code duplicato: nuovo tentativo
+        if (e.code === "23505") continue;       // code duplicato: riprova
+        if (e.code === "42703") { useGallery = false; continue; } // colonna gallery assente
         throw e;
       }
     }
     if (!row) return res.status(500).json({ error: "Impossibile generare il prodotto. Riprova." });
     return res.status(201).json({ product: toProduct(row) });
   } catch (err) {
+    if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
     console.error("admin create product error:", err);
     return res.status(500).json({ error: "Errore nella creazione del prodotto." });
   }
@@ -173,17 +202,44 @@ router.patch("/admin/products/:id", async (req, res) => {
       if (imgBack && !isValidImage(imgBack)) return res.status(400).json({ error: "La seconda foto non è valida." });
       add("img_back_url", imgBack || null);
     }
+    // Galleria completa (più foto). Aggiunta PER ULTIMA così, se la colonna
+    // gallery non è ancora migrata, basta togliere l'ultimo set e riprovare.
+    let galleryAdded = false;
+    if ("images" in b) {
+      const images = normalizeImages(b);
+      add("img_url", images[0]);
+      add("img_back_url", images[1] || null);
+      add("gallery", JSON.stringify(images));
+      galleryAdded = true;
+    }
 
     if (!sets.length) return res.status(400).json({ error: "Niente da aggiornare." });
 
-    vals.push(id);
-    const { rows } = await query(
-      `update products set ${sets.join(", ")} where id = $${vals.length} returning *`,
-      vals
-    );
+    const exec = async () => {
+      const params = [...vals, id];
+      return query(
+        `update products set ${sets.join(", ")} where id = $${params.length} returning *`,
+        params
+      );
+    };
+    let result;
+    try {
+      result = await exec();
+    } catch (e) {
+      if (e.code === "42703" && galleryAdded) {
+        sets.pop(); // rimuove "gallery = $n"
+        vals.pop();
+        galleryAdded = false;
+        result = await exec();
+      } else {
+        throw e;
+      }
+    }
+    const { rows } = result;
     if (!rows[0]) return res.status(404).json({ error: "Prodotto non trovato." });
     return res.json({ product: toProduct(rows[0]) });
   } catch (err) {
+    if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
     console.error("admin update product error:", err);
     return res.status(500).json({ error: "Errore nell'aggiornamento del prodotto." });
   }

@@ -39,6 +39,7 @@ create table if not exists products (
   img_url       text        not null,                  -- foto fronte
   img_back_url  text,                                  -- foto retro
   swatch        text,                                  -- colore pallino UI
+  gallery       jsonb       not null default '[]'::jsonb, -- foto extra (animazione)
   tag           text,
   best_seller   boolean     not null default false,
   blurb         text,

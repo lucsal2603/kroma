@@ -74,6 +74,7 @@ export default function ProductDetail() {
             key={v.code}
             front={v.img}
             back={v.imgBack}
+            images={v.gallery}
             alt={[v.brand, v.model, v.color, v.name].filter(Boolean).join(" ")}
             controls
             interval={3200}

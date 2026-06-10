@@ -173,6 +173,86 @@ function NewCategoryForm({ existing, onClose, onCreate }) {
   );
 }
 
+// --- Finestrella "Altre foto" (galleria che ruota in automatico) -----
+function MoreImagesForm({ images, onClose, onChange }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const addFiles = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setErr("");
+    setBusy(true);
+    try {
+      const dataUrls = [];
+      for (const file of files) {
+        dataUrls.push(await fileToCompressedDataUrl(file));
+      }
+      onChange([...images, ...dataUrls]);
+    } catch (e2) {
+      setErr(e2.message);
+    } finally {
+      setBusy(false);
+      e.target.value = ""; // permette di ricaricare lo stesso file
+    }
+  };
+
+  const removeAt = (i) => onChange(images.filter((_, idx) => idx !== i));
+
+  return (
+    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-md rounded-3xl border border-line bg-elevated p-6 sm:p-8">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Chiudi"
+          className="absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full border border-line text-bone transition-colors hover:border-bone/40"
+        >
+          ✕
+        </button>
+        <h3 className="font-display text-2xl text-bone">Altre foto</h3>
+        <p className="text-muted mt-1 text-sm">
+          Queste foto si alterneranno da sole nel negozio (oltre alle prime due).
+        </p>
+
+        <div className="mt-5 grid grid-cols-3 gap-3">
+          {images.map((src, i) => (
+            <div key={i} className="group relative aspect-square overflow-hidden rounded-xl border border-line bg-ink">
+              <img src={src} alt="" className="h-full w-full object-cover" />
+              <button
+                type="button"
+                onClick={() => removeAt(i)}
+                aria-label="Rimuovi foto"
+                className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-xs text-bone opacity-0 transition-opacity hover:bg-red-500/80 group-hover:opacity-100"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-line bg-ink text-center transition-colors hover:border-volt/50">
+            <span className="text-faint font-mono text-[0.55rem] uppercase">{busy ? "…" : "+ Aggiungi"}</span>
+            <input type="file" accept="image/*" multiple className="hidden" onChange={addFiles} disabled={busy} />
+          </label>
+        </div>
+
+        {err && (
+          <p className="mt-4 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2 text-center font-mono text-[0.7rem] text-red-300">
+            {err}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-5 w-full rounded-full bg-volt px-6 py-3.5 font-mono text-sm font-bold tracking-wider text-black uppercase transition-transform hover:-translate-y-0.5"
+        >
+          Fatto
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // --- Form prodotto (crea o modifica, finestra modale) ----------------
 function ProductForm({ onClose, onCreated, onUpdated, brands, product }) {
   const editing = !!product;
@@ -186,11 +266,17 @@ function ProductForm({ onClose, onCreated, onUpdated, brands, product }) {
   const [blurb, setBlurb] = useState(product?.blurb || "");
   const [img, setImg] = useState(product?.img || "");        // data URL/URL foto principale
   const [imgBack, setImgBack] = useState(product?.imgBack || ""); // foto secondaria
+  // Foto aggiuntive (dalla 3ª in poi): la galleria che ruota in animazione.
+  const [extraImages, setExtraImages] = useState(
+    product?.gallery?.length > 2 ? product.gallery.slice(2) : []
+  );
+  const [showMore, setShowMore] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  // Per non rispedire al server immagini enormi se non sono state cambiate.
-  const initialImg = product?.img || "";
-  const initialImgBack = product?.imgBack || "";
+  // Per capire se le foto sono cambiate (e non rispedire MB inutilmente).
+  const initialImages = product
+    ? (product.gallery?.length ? product.gallery : [product.img, product.imgBack].filter(Boolean))
+    : [];
 
   const pickImage = (setter) => async (e) => {
     const file = e.target.files?.[0];
@@ -212,6 +298,8 @@ function ProductForm({ onClose, onCreated, onUpdated, brands, product }) {
     if (!Number.isFinite(p) || p <= 0) return setError("Inserisci un prezzo valido (> 0).");
     if (!img) return setError("Carica almeno una foto del prodotto.");
     setBusy(true);
+    // La galleria completa: copertina, seconda foto e tutte le aggiuntive.
+    const images = [img, imgBack, ...extraImages].filter(Boolean);
     try {
       if (editing) {
         // In modifica mando le immagini solo se cambiate (sono pesanti).
@@ -223,8 +311,7 @@ function ProductForm({ onClose, onCreated, onUpdated, brands, product }) {
           tag: tag.trim(),
           blurb: blurb.trim(),
         };
-        if (img !== initialImg) payload.img = img;
-        if (imgBack !== initialImgBack) payload.imgBack = imgBack;
+        if (JSON.stringify(images) !== JSON.stringify(initialImages)) payload.images = images;
         const { product: updated } = await api.updateProduct(product.id, payload);
         onUpdated(updated);
       } else {
@@ -235,8 +322,7 @@ function ProductForm({ onClose, onCreated, onUpdated, brands, product }) {
           stock: stock === "" ? 0 : Number(stock),
           tag: tag.trim(),
           blurb: blurb.trim(),
-          img,
-          imgBack,
+          images,
         });
         onCreated(created);
       }
@@ -335,6 +421,21 @@ function ProductForm({ onClose, onCreated, onUpdated, brands, product }) {
               <ImagePicker label="Foto principale" value={img} onPick={pickImage(setImg)} onClear={() => setImg("")} />
               <ImagePicker label="Seconda foto (facolt.)" value={imgBack} onPick={pickImage(setImgBack)} onClear={() => setImgBack("")} />
             </div>
+
+            {/* Altre foto: la galleria che ruota in automatico nel negozio. */}
+            <button
+              type="button"
+              onClick={() => setShowMore(true)}
+              className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-line px-4 py-2.5 font-mono text-[0.65rem] tracking-wider text-muted uppercase transition-colors hover:border-volt/60 hover:text-bone"
+            >
+              🖼️ Altre foto (galleria)
+              {extraImages.length > 0 && (
+                <span className="rounded-full bg-volt/15 px-2 py-0.5 text-volt">+{extraImages.length}</span>
+              )}
+            </button>
+            <p className="text-faint -mt-1.5 font-mono text-[0.58rem]">
+              Aggiungi più foto: nel negozio si alterneranno da sole, come i caschi.
+            </p>
           </div>
         </div>
 
@@ -363,6 +464,14 @@ function ProductForm({ onClose, onCreated, onUpdated, brands, product }) {
               setBrand(nameNew);
               setShowNewCat(false);
             }}
+          />
+        )}
+
+        {showMore && (
+          <MoreImagesForm
+            images={extraImages}
+            onClose={() => setShowMore(false)}
+            onChange={setExtraImages}
           />
         )}
       </form>
