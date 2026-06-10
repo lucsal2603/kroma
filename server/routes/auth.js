@@ -15,7 +15,7 @@ const APP_URL = process.env.APP_URL || "https://lucsal2603.github.io/kroma";
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 ora
 
 // Campi pubblici dell'utente (mai esporre password_hash / reset_token)
-const PUBLIC_USER = "id, username, email, created_at";
+const PUBLIC_USER = "id, username, email, is_admin, created_at";
 
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -78,7 +78,7 @@ router.post("/login", async (req, res) => {
     }
 
     const { rows } = await query(
-      `select id, username, email, password_hash
+      `select id, username, email, is_admin, password_hash
          from users
         where lower(email) = $1 or lower(username) = $1
         limit 1`,
@@ -97,7 +97,7 @@ router.post("/login", async (req, res) => {
     const token = signToken({ sub: user.id, username: user.username });
 
     return res.json({
-      user: { id: user.id, username: user.username, email: user.email },
+      user: { id: user.id, username: user.username, email: user.email, is_admin: user.is_admin },
       token,
     });
   } catch (err) {

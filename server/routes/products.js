@@ -16,6 +16,7 @@ function toProduct(r) {
     model: r.model,
     color: r.color,
     price: Number(r.price),
+    stock: r.stock ?? 0,
     img: r.img_url,
     imgBack: r.img_back_url,
     swatch: r.swatch,

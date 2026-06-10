@@ -13,12 +13,38 @@ import Footer from "./components/Footer";
 import ProductDetail from "./components/ProductDetail";
 import CartDrawer from "./components/CartDrawer";
 import CookieConsent from "./components/CookieConsent";
+import AdminDashboard from "./components/AdminDashboard";
 
 // Pannello accesso/registrazione, montato una sola volta e pilotato dal
 // contesto auth — così può essere aperto sia dal Nav sia dal carrello.
 function AuthModalHost() {
   const { authOpen, closeAuth } = useAuth();
   return <AuthModal open={authOpen} onClose={closeAuth} />;
+}
+
+// Se chi accede è un amministratore, al posto del negozio mostra la
+// dashboard ADMIN. Altrimenti il sito normale da cliente.
+function Shell() {
+  const { isAdmin } = useAuth();
+  if (isAdmin) return <AdminDashboard />;
+
+  return (
+    <div id="top" className="min-h-screen bg-ink text-bone">
+      <Nav />
+      <main>
+        <Hero />
+        <Marquee />
+        <ProductGrid />
+        <Showcase />
+        <Newsletter />
+      </main>
+      <Footer />
+      <ProductDetail />
+      <CartDrawer />
+      <CookieConsent />
+      <AuthModalHost />
+    </div>
+  );
 }
 
 export default function App() {
@@ -28,21 +54,7 @@ export default function App() {
     <AuthProvider>
     <ProductsProvider>
     <CartProvider>
-      <div id="top" className="min-h-screen bg-ink text-bone">
-        <Nav />
-        <main>
-          <Hero />
-          <Marquee />
-          <ProductGrid />
-          <Showcase />
-          <Newsletter />
-        </main>
-        <Footer />
-        <ProductDetail />
-        <CartDrawer />
-        <CookieConsent />
-        <AuthModalHost />
-      </div>
+      <Shell />
     </CartProvider>
     </ProductsProvider>
     </AuthProvider>

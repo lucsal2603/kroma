@@ -15,6 +15,7 @@ create table if not exists users (
   username            text        not null unique,
   email               text        not null unique,
   password_hash       text        not null,          -- bcrypt
+  is_admin            boolean     not null default false, -- true = accede alla dashboard ADMIN
   reset_token         text,                            -- token recupero password
   reset_token_expires timestamptz,                     -- scadenza del token
   created_at          timestamptz not null default now()
@@ -34,6 +35,7 @@ create table if not exists products (
   model         text        not null default 'SZ-R EVO',
   color         text        not null,
   price         numeric(10,2) not null,                -- EUR
+  stock         integer     not null default 0,         -- giacenza disponibile
   img_url       text        not null,                  -- foto fronte
   img_back_url  text,                                  -- foto retro
   swatch        text,                                  -- colore pallino UI

@@ -7,6 +7,7 @@ import authRoutes from "./routes/auth.js";
 import productRoutes from "./routes/products.js";
 import cartRoutes from "./routes/cart.js";
 import checkoutRoutes from "./routes/checkout.js";
+import adminRoutes from "./routes/admin.js";
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -43,6 +44,7 @@ app.use("/", authRoutes);     // /register, /login, /user/profile, /forgot-passw
 app.use("/", productRoutes);  // /products, /products/:id
 app.use("/", cartRoutes);     // /cart (POST/GET/DELETE)
 app.use("/", checkoutRoutes); // /checkout, /orders
+app.use("/", adminRoutes);    // /admin/orders, /admin/products/:id
 
 // --- 404 -------------------------------------------------------------
 app.use((req, res) => {

@@ -85,6 +85,19 @@ router.post("/checkout", requireAuth, async (req, res) => {
          values ($1, $2, $3, $4, $5)`,
         [orderId, i.productId, i.size, i.quantity, i.price]
       );
+
+      // Scala la giacenza del casco acquistato. La condizione "stock >= quantità"
+      // fa sì che, se non ce ne sono abbastanza, nessuna riga venga aggiornata:
+      // in quel caso annulliamo l'ordine e avvisiamo il cliente.
+      const dec = await client.query(
+        `update products set stock = stock - $1 where id = $2 and stock >= $1`,
+        [i.quantity, i.productId]
+      );
+      if (dec.rowCount === 0) {
+        const e = new Error(`"${i.name} ${i.color}" non è più disponibile nella quantità richiesta.`);
+        e.statusCode = 409;
+        throw e;
+      }
     }
 
     // --- Pagamento ----------------------------------------------------
@@ -155,6 +168,10 @@ router.post("/checkout", requireAuth, async (req, res) => {
   } catch (err) {
     if (!committed) {
       try { await client.query("rollback"); } catch {}
+    }
+    // Errore "previsto" (es. casco esaurito): mostriamo il messaggio al cliente.
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
     }
     console.error("checkout error:", err);
     return res.status(500).json({ error: "Errore durante il checkout." });

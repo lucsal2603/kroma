@@ -64,6 +64,11 @@ export const api = {
   // --- Checkout (richiede login) ---
   checkout: (payload = {}) => request("/checkout", { method: "POST", auth: true, body: payload }),
   getOrders: () => request("/orders", { auth: true }),
+
+  // --- Admin (richiede account amministratore) ---
+  getAllOrders: () => request("/admin/orders", { auth: true }),
+  updateStock: (productId, stock) =>
+    request(`/admin/products/${productId}`, { method: "PATCH", auth: true, body: { stock } }),
 };
 
 export { API_BASE };
