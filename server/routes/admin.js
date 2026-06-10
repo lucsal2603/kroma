@@ -65,6 +65,7 @@ router.get("/admin/orders", async (_req, res) => {
 router.post("/admin/products", async (req, res) => {
   try {
     const name = String(req.body?.name || "").trim();
+    const brand = String(req.body?.brand || "").trim() || "KROMA";
     const price = Number(req.body?.price);
     const blurb = String(req.body?.blurb || "").trim();
     const tag = String(req.body?.tag || "").trim();
@@ -91,9 +92,9 @@ router.post("/admin/products", async (req, res) => {
         const { rows } = await query(
           `insert into products
              (code, name, brand, model, color, price, stock, img_url, img_back_url, tag, best_seller, blurb, specs)
-           values ($1,$2,'KROMA','','',$3,$4,$5,$6,$7,false,$8,'[]'::jsonb)
+           values ($1,$2,$3,'','',$4,$5,$6,$7,$8,false,$9,'[]'::jsonb)
            returning *`,
-          [code, name, price, stock, img, imgBack || null, tag || null, blurb || null]
+          [code, name, brand, price, stock, img, imgBack || null, tag || null, blurb || null]
         );
         row = rows[0];
       } catch (e) {

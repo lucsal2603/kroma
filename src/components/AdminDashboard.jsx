@@ -108,6 +108,7 @@ function StockRow({ product, onSaved, onDeleted }) {
 // --- Form "Aggiungi prodotto" (finestra modale) ----------------------
 function AddProductForm({ onClose, onCreated }) {
   const [name, setName] = useState("");
+  const [brand, setBrand] = useState("");
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("5");
   const [tag, setTag] = useState("");
@@ -140,6 +141,7 @@ function AddProductForm({ onClose, onCreated }) {
     try {
       const { product } = await api.createProduct({
         name: name.trim(),
+        brand: brand.trim(),
         price: p,
         stock: stock === "" ? 0 : Number(stock),
         tag: tag.trim(),
@@ -179,6 +181,24 @@ function AddProductForm({ onClose, onCreated }) {
           <div>
             <label className="eyebrow mb-2 block text-[0.6rem]">Nome</label>
             <input className={field} value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Guanti racing" />
+          </div>
+
+          <div>
+            <label className="eyebrow mb-2 block text-[0.6rem]">Marca / Categoria</label>
+            <input
+              className={field}
+              list="kroma-brands"
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+              placeholder="Es. ARAI, Shoei, AGV…"
+            />
+            <datalist id="kroma-brands">
+              <option value="ARAI" />
+              <option value="Shoei" />
+              <option value="AGV" />
+              <option value="HJC" />
+            </datalist>
+            <p className="text-faint mt-1.5 font-mono text-[0.58rem]">È il bollino mostrato sulla foto. Se lo lasci vuoto sarà "KROMA".</p>
           </div>
 
           <div className="flex gap-4">
