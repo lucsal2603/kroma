@@ -66,7 +66,7 @@ export default function ProductDetail() {
           ✕
         </button>
 
-        <div className="relative aspect-[5/4] max-h-[48vh] overflow-hidden bg-gradient-to-b from-[#f4f4f3] to-[#cfcfcb] md:aspect-auto md:max-h-none">
+        <div className="relative h-[46vh] w-full overflow-hidden bg-gradient-to-b from-[#f4f4f3] to-[#cfcfcb] md:h-auto">
           <HelmetFlip
             key={v.code}
             front={v.img}
