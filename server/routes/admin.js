@@ -7,8 +7,11 @@ import { requireAuth, requireAdmin } from "../lib/auth.js";
 
 const router = Router();
 
-// Tutte le rotte qui sotto passano prima da requireAuth e poi requireAdmin.
-router.use(requireAuth, requireAdmin);
+// Tutte le rotte /admin passano prima da requireAuth e poi requireAdmin.
+// IMPORTANT: il path "/admin" è obbligatorio. Senza di esso il middleware
+// verrebbe applicato a OGNI richiesta che arriva fin qui (questo router è
+// montato su "/"), bloccando con 401 anche rotte pubbliche come /paypal/config.
+router.use("/admin", requireAuth, requireAdmin);
 
 // --- GET /admin/orders ----------------------------------------------
 // Tutti gli ordini con cliente, indirizzo e righe d'ordine.
