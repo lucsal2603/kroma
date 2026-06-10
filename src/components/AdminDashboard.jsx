@@ -105,10 +105,72 @@ function StockRow({ product, onSaved, onDeleted }) {
   );
 }
 
+// --- Finestrella "Nuova categoria" (sopra al form prodotto) ----------
+function NewCategoryForm({ existing, onClose, onCreate }) {
+  const [val, setVal] = useState("");
+  const [err, setErr] = useState("");
+
+  const create = () => {
+    const nameNew = val.trim();
+    if (!nameNew) return setErr("Scrivi il nome della categoria.");
+    if (existing.some((c) => c.toLowerCase() === nameNew.toLowerCase()))
+      return setErr("Questa categoria esiste già.");
+    onCreate(nameNew);
+  };
+
+  // Non è un <form> (sarebbe annidato dentro quello del prodotto): gestiamo
+  // Invio a mano e blocchiamo il submit del form esterno.
+  const onKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      create();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-sm rounded-3xl border border-line bg-elevated p-6 sm:p-8">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Chiudi"
+          className="absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full border border-line text-bone transition-colors hover:border-bone/40"
+        >
+          ✕
+        </button>
+        <h3 className="font-display text-2xl text-bone">Nuova categoria</h3>
+        <p className="text-muted mt-1 text-sm">Es. una marca (Shoei) o un tipo (Accessori).</p>
+        <input
+          autoFocus
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder="Nome categoria"
+          className="mt-5 w-full rounded-xl border border-line bg-ink px-4 py-3 text-bone outline-none focus:border-volt/60"
+        />
+        {err && (
+          <p className="mt-3 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2 text-center font-mono text-[0.7rem] text-red-300">
+            {err}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={create}
+          className="mt-5 w-full rounded-full bg-volt px-6 py-3.5 font-mono text-sm font-bold tracking-wider text-black uppercase transition-transform hover:-translate-y-0.5"
+        >
+          Crea categoria
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // --- Form "Aggiungi prodotto" (finestra modale) ----------------------
-function AddProductForm({ onClose, onCreated }) {
+function AddProductForm({ onClose, onCreated, brands }) {
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
+  const [cats, setCats] = useState(brands);
+  const [showNewCat, setShowNewCat] = useState(false);
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("5");
   const [tag, setTag] = useState("");
@@ -185,20 +247,31 @@ function AddProductForm({ onClose, onCreated }) {
 
           <div>
             <label className="eyebrow mb-2 block text-[0.6rem]">Marca / Categoria</label>
-            <input
-              className={field}
-              list="kroma-brands"
-              value={brand}
-              onChange={(e) => setBrand(e.target.value)}
-              placeholder="Es. ARAI, Shoei, AGV…"
-            />
-            <datalist id="kroma-brands">
-              <option value="ARAI" />
-              <option value="Shoei" />
-              <option value="AGV" />
-              <option value="HJC" />
-            </datalist>
-            <p className="text-faint mt-1.5 font-mono text-[0.58rem]">È il bollino mostrato sulla foto. Se lo lasci vuoto sarà "KROMA".</p>
+            <div className="flex flex-wrap gap-2">
+              {cats.map((c) => (
+                <button
+                  type="button"
+                  key={c}
+                  onClick={() => setBrand(brand === c ? "" : c)}
+                  className={
+                    "rounded-full px-4 py-2 font-mono text-xs tracking-wider uppercase transition-colors " +
+                    (brand === c
+                      ? "border border-volt bg-volt/15 text-volt"
+                      : "border border-line text-muted hover:text-bone")
+                  }
+                >
+                  {c}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setShowNewCat(true)}
+                className="rounded-full border border-dashed border-line px-4 py-2 font-mono text-xs tracking-wider text-bone uppercase transition-colors hover:border-volt/60"
+              >
+                + Nuova
+              </button>
+            </div>
+            <p className="text-faint mt-1.5 font-mono text-[0.58rem]">È il bollino mostrato sulla foto. Se non scegli nulla sarà "KROMA".</p>
           </div>
 
           <div className="flex gap-4">
@@ -241,6 +314,18 @@ function AddProductForm({ onClose, onCreated }) {
             {busy ? "Creo il prodotto…" : "🦈 Crea prodotto"}
           </button>
         </div>
+
+        {showNewCat && (
+          <NewCategoryForm
+            existing={cats}
+            onClose={() => setShowNewCat(false)}
+            onCreate={(nameNew) => {
+              setCats((list) => [...list, nameNew]);
+              setBrand(nameNew);
+              setShowNewCat(false);
+            }}
+          />
+        )}
       </form>
     </div>
   );
@@ -456,7 +541,13 @@ export default function AdminDashboard() {
       </main>
 
       {showAdd && (
-        <AddProductForm onClose={() => setShowAdd(false)} onCreated={onProductCreated} />
+        <AddProductForm
+          onClose={() => setShowAdd(false)}
+          onCreated={onProductCreated}
+          brands={Array.from(
+            new Set(["ARAI", "Shoei", "AGV", "HJC", ...products.map((p) => p.brand).filter(Boolean)])
+          )}
+        />
       )}
     </div>
   );
