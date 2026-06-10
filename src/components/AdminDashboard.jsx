@@ -3,6 +3,7 @@ import { useAuth } from "../store/auth";
 import { api } from "../lib/api";
 import { formatEuro } from "../data/products";
 import { fileToCompressedDataUrl } from "../lib/image";
+import HelmetFlip from "./HelmetFlip";
 import Logo from "./Logo";
 
 // Etichette leggibili per lo stato dell'ordine.
@@ -253,6 +254,54 @@ function MoreImagesForm({ images, onClose, onChange }) {
   );
 }
 
+// --- Anteprima: scheda prodotto come apparirà nel negozio ------------
+function PreviewCard({ name, brand, price, tag, blurb, gallery }) {
+  const priceNum = Number(price);
+  return (
+    <div className="mx-auto max-w-xs">
+      <div className="overflow-hidden rounded-2xl border border-line bg-elevated">
+        <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-b from-[#f4f4f3] to-[#d9d9d6]">
+          <HelmetFlip
+            images={gallery}
+            alt={name}
+            interval={2200}
+            className="h-full w-full"
+            imgClass="h-full w-full object-contain p-5"
+          />
+          <span className="absolute top-4 left-4 rounded-full bg-black/80 px-3 py-1 font-mono text-[0.62rem] font-bold tracking-[0.2em] text-bone uppercase">
+            {brand.trim() || "KROMA"}
+          </span>
+          {tag.trim() && (
+            <span className="absolute top-4 right-4 rounded-full bg-black/60 px-3 py-1 font-mono text-[0.62rem] tracking-[0.14em] text-bone uppercase">
+              {tag.trim()}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center justify-between p-5">
+          <div className="min-w-0">
+            <div className="eyebrow text-[0.6rem]">{brand.trim() || "KROMA"}</div>
+            <div className="font-display mt-1 truncate text-2xl text-bone">{name || "Senza nome"}</div>
+          </div>
+          <div className="shrink-0 text-right">
+            <div className="text-muted font-mono text-xs">EUR</div>
+            <div className="text-bone text-lg font-semibold">
+              {Number.isFinite(priceNum) ? formatEuro(priceNum) : "—"}
+            </div>
+          </div>
+        </div>
+        {blurb.trim() && (
+          <p className="text-muted px-5 pb-5 text-sm leading-relaxed">{blurb.trim()}</p>
+        )}
+      </div>
+      <p className="text-faint mt-3 text-center font-mono text-[0.58rem] tracking-wide uppercase">
+        {gallery.length > 1
+          ? `Galleria: ${gallery.length} foto che si alternano da sole`
+          : "1 foto"}
+      </p>
+    </div>
+  );
+}
+
 // --- Form prodotto (crea o modifica, finestra modale) ----------------
 function ProductForm({ onClose, onCreated, onUpdated, brands, product }) {
   const editing = !!product;
@@ -271,6 +320,7 @@ function ProductForm({ onClose, onCreated, onUpdated, brands, product }) {
     product?.gallery?.length > 2 ? product.gallery.slice(2) : []
   );
   const [showMore, setShowMore] = useState(false);
+  const [preview, setPreview] = useState(false); // step di conferma con anteprima
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   // Per capire se le foto sono cambiate (e non rispedire MB inutilmente).
@@ -290,16 +340,26 @@ function ProductForm({ onClose, onCreated, onUpdated, brands, product }) {
     }
   };
 
-  const submit = async (e) => {
+  // La galleria completa: copertina, seconda foto e tutte le aggiuntive.
+  const gallery = [img, imgBack, ...extraImages].filter(Boolean);
+
+  // 1° passo: dal form si va all'anteprima (dopo i controlli).
+  const toPreview = (e) => {
     e.preventDefault();
     setError("");
     if (!name.trim()) return setError("Inserisci il nome del prodotto.");
     const p = Number(price);
     if (!Number.isFinite(p) || p <= 0) return setError("Inserisci un prezzo valido (> 0).");
     if (!img) return setError("Carica almeno una foto del prodotto.");
+    setPreview(true);
+  };
+
+  // 2° passo: confermata l'anteprima, si salva davvero.
+  const confirm = async () => {
+    setError("");
+    const p = Number(price);
     setBusy(true);
-    // La galleria completa: copertina, seconda foto e tutte le aggiuntive.
-    const images = [img, imgBack, ...extraImages].filter(Boolean);
+    const images = gallery;
     try {
       if (editing) {
         // In modifica mando le immagini solo se cambiate (sono pesanti).
@@ -338,15 +398,21 @@ function ProductForm({ onClose, onCreated, onUpdated, brands, product }) {
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm sm:p-6">
       <form
-        onSubmit={submit}
+        onSubmit={toPreview}
         className="relative flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-line bg-elevated"
       >
         {/* Intestazione fissa */}
         <div className="flex items-start justify-between gap-3 border-b border-line px-5 py-4 sm:px-7">
           <div>
-            <h3 className="font-display text-2xl text-bone">{editing ? "Modifica prodotto" : "Aggiungi prodotto"}</h3>
+            <h3 className="font-display text-2xl text-bone">
+              {preview ? "Anteprima" : editing ? "Modifica prodotto" : "Aggiungi prodotto"}
+            </h3>
             <p className="text-muted mt-0.5 text-xs">
-              {editing ? "Le modifiche si vedono subito nel negozio." : "Comparirà subito nel negozio."}
+              {preview
+                ? "Ecco come apparirà nel negozio. Confermi o torni a modificare?"
+                : editing
+                  ? "Le modifiche si vedono subito nel negozio."
+                  : "Comparirà subito nel negozio."}
             </p>
           </div>
           <button
@@ -361,6 +427,16 @@ function ProductForm({ onClose, onCreated, onUpdated, brands, product }) {
 
         {/* Corpo scorrevole */}
         <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-7">
+          {preview ? (
+            <PreviewCard
+              name={name}
+              brand={brand}
+              price={price}
+              tag={tag}
+              blurb={blurb}
+              gallery={gallery}
+            />
+          ) : (
           <div className="flex flex-col gap-3.5">
             <div>
               <label className="eyebrow mb-1.5 block text-[0.6rem]">Nome</label>
@@ -437,6 +513,7 @@ function ProductForm({ onClose, onCreated, onUpdated, brands, product }) {
               Aggiungi più foto: nel negozio si alterneranno da sole, come i caschi.
             </p>
           </div>
+          )}
         </div>
 
         {/* Piè di pagina fisso: pulsante sempre raggiungibile */}
@@ -446,13 +523,34 @@ function ProductForm({ onClose, onCreated, onUpdated, brands, product }) {
               {error}
             </p>
           )}
-          <button
-            type="submit"
-            disabled={busy}
-            className="w-full rounded-full bg-volt px-8 py-3.5 font-mono text-sm font-bold tracking-wider text-black uppercase transition-transform duration-300 hover:-translate-y-0.5 disabled:opacity-50"
-          >
-            {busy ? "Salvo…" : editing ? "💾 Salva modifiche" : "🦈 Crea prodotto"}
-          </button>
+          {preview ? (
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setPreview(false)}
+                disabled={busy}
+                className="flex-1 rounded-full border border-line px-6 py-3.5 font-mono text-sm font-bold tracking-wider text-bone uppercase transition-colors hover:border-bone/40 disabled:opacity-50"
+              >
+                ← Modifica
+              </button>
+              <button
+                type="button"
+                onClick={confirm}
+                disabled={busy}
+                className="flex-1 rounded-full bg-volt px-6 py-3.5 font-mono text-sm font-bold tracking-wider text-black uppercase transition-transform duration-300 hover:-translate-y-0.5 disabled:opacity-50"
+              >
+                {busy ? "Salvo…" : editing ? "✓ Conferma" : "✓ Pubblica"}
+              </button>
+            </div>
+          ) : (
+            <button
+              type="submit"
+              disabled={busy}
+              className="w-full rounded-full bg-volt px-8 py-3.5 font-mono text-sm font-bold tracking-wider text-black uppercase transition-transform duration-300 hover:-translate-y-0.5 disabled:opacity-50"
+            >
+              {editing ? "👁 Anteprima modifiche" : "👁 Anteprima"}
+            </button>
+          )}
         </div>
 
         {showNewCat && (
