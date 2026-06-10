@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../store/auth";
 import { api } from "../lib/api";
 import { formatEuro } from "../data/products";
+import { fileToCompressedDataUrl } from "../lib/image";
 import Logo from "./Logo";
 
 // Etichette leggibili per lo stato dell'ordine.
@@ -18,14 +19,16 @@ const fmtDate = (iso) =>
 
 const orderNumber = (id) => String(id).replace(/-/g, "").slice(0, 6).toUpperCase();
 
-// --- Riga prodotto con editor della giacenza -------------------------
-function StockRow({ product, onSaved }) {
+// --- Riga prodotto con editor della giacenza + elimina ---------------
+function StockRow({ product, onSaved, onDeleted }) {
   const [value, setValue] = useState(String(product.stock ?? 0));
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(0);
   const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const dirty = Number(value) !== Number(product.stock ?? 0);
+  const meta = [product.code, product.color].filter(Boolean).join(" · ");
 
   const save = async () => {
     const n = Number(value);
@@ -46,13 +49,26 @@ function StockRow({ product, onSaved }) {
     }
   };
 
+  const remove = async () => {
+    if (!window.confirm(`Eliminare "${product.name}" dal sito? L'azione non è reversibile.`)) return;
+    setDeleting(true);
+    setError("");
+    try {
+      await api.deleteProduct(product.id);
+      onDeleted(product.id);
+    } catch (err) {
+      setError(err.message);
+      setDeleting(false);
+    }
+  };
+
   return (
-    <div className="flex items-center gap-4 rounded-2xl border border-line bg-ink p-4">
+    <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-line bg-ink p-4">
       <img src={product.img} alt={product.name} className="h-14 w-14 shrink-0 rounded-xl object-cover" />
       <div className="min-w-0 flex-1">
         <div className="truncate font-display text-lg text-bone">{product.name}</div>
         <div className="text-faint truncate font-mono text-[0.65rem] tracking-wide uppercase">
-          {product.code} · {product.color}
+          {meta} · {formatEuro(product.price)} €
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -70,12 +86,164 @@ function StockRow({ product, onSaved }) {
         >
           {saving ? "…" : "Salva"}
         </button>
+        <button
+          onClick={remove}
+          disabled={deleting}
+          aria-label="Elimina prodotto"
+          title="Elimina prodotto"
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-line text-muted transition-colors hover:border-red-500/50 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
+        >
+          {deleting ? "…" : "🗑"}
+        </button>
       </div>
       {error ? (
-        <span className="font-mono text-[0.6rem] text-red-300">{error}</span>
+        <span className="w-full font-mono text-[0.6rem] text-red-300">{error}</span>
       ) : savedAt ? (
         <span className="font-mono text-[0.6rem] text-volt">✓</span>
       ) : null}
+    </div>
+  );
+}
+
+// --- Form "Aggiungi prodotto" (finestra modale) ----------------------
+function AddProductForm({ onClose, onCreated }) {
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [stock, setStock] = useState("5");
+  const [tag, setTag] = useState("");
+  const [blurb, setBlurb] = useState("");
+  const [img, setImg] = useState("");        // data URL foto principale
+  const [imgBack, setImgBack] = useState(""); // data URL foto secondaria
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const pickImage = (setter) => async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError("");
+    try {
+      const dataUrl = await fileToCompressedDataUrl(file);
+      setter(dataUrl);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!name.trim()) return setError("Inserisci il nome del prodotto.");
+    const p = Number(price);
+    if (!Number.isFinite(p) || p <= 0) return setError("Inserisci un prezzo valido (> 0).");
+    if (!img) return setError("Carica almeno una foto del prodotto.");
+    setBusy(true);
+    try {
+      const { product } = await api.createProduct({
+        name: name.trim(),
+        price: p,
+        stock: stock === "" ? 0 : Number(stock),
+        tag: tag.trim(),
+        blurb: blurb.trim(),
+        img,
+        imgBack,
+      });
+      onCreated(product);
+      onClose();
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  };
+
+  const field = "w-full rounded-xl border border-line bg-ink px-4 py-3 text-bone outline-none focus:border-volt/60";
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm sm:p-8">
+      <form
+        onSubmit={submit}
+        className="relative w-full max-w-lg rounded-3xl border border-line bg-elevated p-6 sm:p-8"
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Chiudi"
+          className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full border border-line text-bone transition-colors hover:border-bone/40"
+        >
+          ✕
+        </button>
+
+        <h3 className="font-display text-3xl text-bone">Aggiungi prodotto</h3>
+        <p className="text-muted mt-1 text-sm">Comparirà subito nel negozio, vicino agli altri.</p>
+
+        <div className="mt-6 flex flex-col gap-4">
+          <div>
+            <label className="eyebrow mb-2 block text-[0.6rem]">Nome</label>
+            <input className={field} value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Guanti racing" />
+          </div>
+
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="eyebrow mb-2 block text-[0.6rem]">Prezzo (EUR)</label>
+              <input className={field} type="number" min="0" step="1" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="120" />
+            </div>
+            <div className="flex-1">
+              <label className="eyebrow mb-2 block text-[0.6rem]">Giacenza</label>
+              <input className={field} type="number" min="0" value={stock} onChange={(e) => setStock(e.target.value)} />
+            </div>
+          </div>
+
+          <div>
+            <label className="eyebrow mb-2 block text-[0.6rem]">Etichetta (facoltativa)</label>
+            <input className={field} value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Es. 🆕 novità" />
+          </div>
+
+          <div>
+            <label className="eyebrow mb-2 block text-[0.6rem]">Descrizione</label>
+            <textarea className={field + " min-h-[90px] resize-y"} value={blurb} onChange={(e) => setBlurb(e.target.value)} placeholder="Racconta il prodotto in due righe…" />
+          </div>
+
+          <div className="flex gap-4">
+            <ImagePicker label="Foto principale" value={img} onPick={pickImage(setImg)} onClear={() => setImg("")} />
+            <ImagePicker label="Seconda foto (facoltativa)" value={imgBack} onPick={pickImage(setImgBack)} onClear={() => setImgBack("")} />
+          </div>
+
+          {error && (
+            <p className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-center font-mono text-[0.7rem] text-red-300">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={busy}
+            className="mt-2 rounded-full bg-volt px-8 py-4 font-mono text-sm font-bold tracking-wider text-black uppercase transition-transform duration-300 hover:-translate-y-0.5 disabled:opacity-50"
+          >
+            {busy ? "Creo il prodotto…" : "🦈 Crea prodotto"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// Selettore immagine con anteprima.
+function ImagePicker({ label, value, onPick, onClear }) {
+  return (
+    <div className="flex-1">
+      <label className="eyebrow mb-2 block text-[0.6rem]">{label}</label>
+      <label className="flex aspect-square cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-line bg-ink transition-colors hover:border-volt/50">
+        {value ? (
+          <img src={value} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <span className="text-faint px-2 text-center font-mono text-[0.6rem] uppercase">+ Carica foto</span>
+        )}
+        <input type="file" accept="image/*" className="hidden" onChange={onPick} />
+      </label>
+      {value && (
+        <button type="button" onClick={onClear} className="mt-1.5 font-mono text-[0.6rem] text-muted underline hover:text-bone">
+          rimuovi
+        </button>
+      )}
     </div>
   );
 }
@@ -87,6 +255,7 @@ export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -114,6 +283,9 @@ export default function AdminDashboard() {
 
   const onStockSaved = (id, stock) =>
     setProducts((list) => list.map((p) => (p.id === id ? { ...p, stock } : p)));
+
+  const onProductCreated = (product) => setProducts((list) => [product, ...list]);
+  const onProductDeleted = (id) => setProducts((list) => list.filter((p) => p.id !== id));
 
   const revenue = orders
     .filter((o) => o.status === "paid" || o.status === "shipped")
@@ -145,7 +317,7 @@ export default function AdminDashboard() {
         <div className="mb-8 grid grid-cols-3 gap-4">
           {[
             ["Ordini", orders.length],
-            ["Caschi", products.length],
+            ["Prodotti", products.length],
             ["Incassato", `${formatEuro(revenue)} €`],
           ].map(([label, val]) => (
             <div key={label} className="rounded-2xl border border-line bg-elevated p-5">
@@ -155,10 +327,10 @@ export default function AdminDashboard() {
           ))}
         </div>
 
-        <div className="mb-6 flex gap-2">
+        <div className="mb-6 flex flex-wrap items-center gap-2">
           {[
             ["orders", "Ordini ricevuti"],
-            ["stock", "Giacenza caschi"],
+            ["stock", "Prodotti & giacenza"],
           ].map(([key, label]) => (
             <button
               key={key}
@@ -173,6 +345,14 @@ export default function AdminDashboard() {
               {label}
             </button>
           ))}
+          {tab === "stock" && (
+            <button
+              onClick={() => setShowAdd(true)}
+              className="ml-auto rounded-full bg-volt px-5 py-2.5 font-mono text-xs font-bold tracking-wider text-black uppercase transition-transform hover:-translate-y-0.5"
+            >
+              + Aggiungi prodotto
+            </button>
+          )}
         </div>
 
         {loading ? (
@@ -187,7 +367,7 @@ export default function AdminDashboard() {
         ) : tab === "stock" ? (
           <div className="flex flex-col gap-3">
             {products.map((p) => (
-              <StockRow key={p.id} product={p} onSaved={onStockSaved} />
+              <StockRow key={p.id} product={p} onSaved={onStockSaved} onDeleted={onProductDeleted} />
             ))}
           </div>
         ) : orders.length === 0 ? (
@@ -254,6 +434,10 @@ export default function AdminDashboard() {
           </div>
         )}
       </main>
+
+      {showAdd && (
+        <AddProductForm onClose={() => setShowAdd(false)} onCreated={onProductCreated} />
+      )}
     </div>
   );
 }

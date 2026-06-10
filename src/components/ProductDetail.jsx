@@ -44,7 +44,10 @@ export default function ProductDetail() {
   if (!product) return null;
 
   const v = variant || product;
-  const colors = products.filter((p) => p.model === v.model);
+  // Le varianti colore esistono solo per i caschi (stesso "model"). I prodotti
+  // generici aggiunti dall'admin hanno model vuoto: niente raggruppamento.
+  const colors = v.model ? products.filter((p) => p.model === v.model) : [];
+  const meta = [v.brand, v.model, v.color].filter(Boolean).join(" · ");
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 sm:p-8">
@@ -71,7 +74,7 @@ export default function ProductDetail() {
             key={v.code}
             front={v.img}
             back={v.imgBack}
-            alt={`Casco ARAI ${v.model} ${v.color}`}
+            alt={[v.brand, v.model, v.color, v.name].filter(Boolean).join(" ")}
             controls
             interval={3200}
             className="absolute inset-0 h-full w-full"
@@ -86,31 +89,33 @@ export default function ProductDetail() {
 
         <div className="flex flex-col gap-5 px-6 pb-6 pt-9 sm:gap-6 sm:p-8 md:min-h-0 md:overflow-y-auto">
           <div>
-            <div className="eyebrow text-[0.6rem]">{v.brand} · {v.model} · {v.color}</div>
+            <div className="eyebrow text-[0.6rem]">{meta}</div>
             <h2 className="font-display mt-2 text-5xl text-bone">{v.name}</h2>
             <div className="text-muted mt-1 font-mono text-xs">{v.code}</div>
           </div>
 
           <p className="text-muted text-sm leading-relaxed">{v.blurb}</p>
 
-          <div>
-            <div className="eyebrow mb-3 text-[0.6rem]">Colore · {v.color}</div>
-            <div className="flex gap-3">
-              {colors.map((c) => (
-                <button
-                  key={c.code}
-                  onClick={() => setVariant(c)}
-                  aria-label={c.color}
-                  title={c.color}
-                  className={
-                    "h-9 w-9 rounded-full border-2 transition-transform duration-200 hover:scale-110 " +
-                    (v.code === c.code ? "border-volt scale-110" : "border-line")
-                  }
-                  style={{ backgroundColor: c.swatch }}
-                />
-              ))}
+          {colors.length > 1 && (
+            <div>
+              <div className="eyebrow mb-3 text-[0.6rem]">Colore · {v.color}</div>
+              <div className="flex gap-3">
+                {colors.map((c) => (
+                  <button
+                    key={c.code}
+                    onClick={() => setVariant(c)}
+                    aria-label={c.color}
+                    title={c.color}
+                    className={
+                      "h-9 w-9 rounded-full border-2 transition-transform duration-200 hover:scale-110 " +
+                      (v.code === c.code ? "border-volt scale-110" : "border-line")
+                    }
+                    style={{ backgroundColor: c.swatch }}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div>
             <div className="eyebrow mb-3 text-[0.6rem]">Taglia</div>

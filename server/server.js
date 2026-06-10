@@ -14,7 +14,9 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 // --- Middleware globali ---------------------------------------------
-app.use(express.json());
+// Limite alto: le immagini dei prodotti caricate dall'admin viaggiano come
+// data URL (base64) dentro al JSON. 8mb copre foto compresse lato browser.
+app.use(express.json({ limit: "8mb" }));
 
 // CORS: consenti il frontend (GitHub Pages) + sviluppo locale.
 const allowedOrigins = [

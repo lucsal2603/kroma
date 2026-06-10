@@ -63,7 +63,7 @@ export default function ProductGrid() {
               <HelmetFlip
                 front={p.img}
                 back={p.imgBack}
-                alt={`Casco ARAI ${p.model} ${p.color}`}
+                alt={[p.brand, p.model, p.color, p.name].filter(Boolean).join(" ")}
                 interval={3600}
                 offset={i * 1200}
                 className="h-full w-full"
@@ -72,9 +72,11 @@ export default function ProductGrid() {
               <span className="absolute top-4 left-4 rounded-full bg-black/80 px-3 py-1 font-mono text-[0.62rem] font-bold tracking-[0.2em] text-bone uppercase">
                 {p.brand}
               </span>
-              <span className="absolute top-4 right-4 rounded-full bg-black/60 px-3 py-1 font-mono text-[0.62rem] tracking-[0.14em] text-bone uppercase">
-                {p.tag}
-              </span>
+              {p.tag && (
+                <span className="absolute top-4 right-4 rounded-full bg-black/60 px-3 py-1 font-mono text-[0.62rem] tracking-[0.14em] text-bone uppercase">
+                  {p.tag}
+                </span>
+              )}
               {p.bestSeller && (
                 <span className="anim-pulse absolute bottom-4 left-4 flex items-center gap-1.5 rounded-full bg-volt px-3 py-1.5 font-mono text-[0.62rem] font-bold tracking-[0.14em] text-black uppercase shadow-lg">
                   🦈 #1 più acquistato
@@ -83,7 +85,9 @@ export default function ProductGrid() {
             </div>
             <div className="flex items-center justify-between p-6">
               <div>
-                <div className="eyebrow text-[0.6rem]">{p.model} · {p.color}</div>
+                <div className="eyebrow text-[0.6rem]">
+                  {[p.model, p.color].filter(Boolean).join(" · ") || p.brand}
+                </div>
                 <div className="font-display mt-1 text-3xl text-bone">{p.name}</div>
               </div>
               <div className="text-right">
