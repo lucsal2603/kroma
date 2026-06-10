@@ -17,3 +17,5 @@ update products set stock = 10 where stock = 0;
 -- password). Questa riga lo rende solo amministratore.
 -- =====================================================================
 update users set is_admin = true where lower(email) = 'lukesalvemini@gmail.com';
+update users set is_admin = true where lower(email) = 'mattiads403@gmail.com';
+update users set is_admin = true where lower(email) = 'davegfxbusiness@gmail.com';
