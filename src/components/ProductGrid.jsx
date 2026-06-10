@@ -1,11 +1,13 @@
 import { useReveal } from "../hooks/useReveal";
-import { PRODUCTS, BRANDS, formatEuro } from "../data/products";
+import { BRANDS, formatEuro } from "../data/products";
 import { useCart } from "../store/cart";
+import { useProducts } from "../store/products";
 import HelmetFlip from "./HelmetFlip";
 
 export default function ProductGrid() {
   const ref = useReveal({ stagger: 0.1, y: 60 });
   const { openProduct } = useCart();
+  const { products } = useProducts();
 
   return (
     <section id="collezione" ref={ref} className="mx-auto max-w-[1400px] px-6 py-28 lg:px-10">
@@ -45,7 +47,7 @@ export default function ProductGrid() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {PRODUCTS.map((p, i) => (
+        {products.map((p, i) => (
           <button
             key={p.code}
             data-reveal

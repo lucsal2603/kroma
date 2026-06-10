@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "../lib/gsap";
-import { PRODUCTS, SIZES, formatEuro } from "../data/products";
+import { SIZES, formatEuro } from "../data/products";
 import { useCart } from "../store/cart";
+import { useProducts } from "../store/products";
 import HelmetFlip from "./HelmetFlip";
 
 export default function ProductDetail() {
   const { product, closeProduct, add } = useCart();
+  const { products } = useProducts();
   const [size, setSize] = useState("M");
   const [variant, setVariant] = useState(null);
   const panel = useRef(null);
@@ -42,7 +44,7 @@ export default function ProductDetail() {
   if (!product) return null;
 
   const v = variant || product;
-  const colors = PRODUCTS.filter((p) => p.model === v.model);
+  const colors = products.filter((p) => p.model === v.model);
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 sm:p-8">

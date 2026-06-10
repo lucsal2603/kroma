@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
 import { formatEuro } from "../data/products";
 import { useCart } from "../store/cart";
+import { useAuth } from "../store/auth";
+import { api } from "../lib/api";
 
 export default function CartDrawer() {
   const { items, count, subtotal, setQty, remove, clear, cartOpen, closeCart } = useCart();
+  const { isAuthenticated, openAuth } = useAuth();
   const [done, setDone] = useState(false);
   const [paying, setPaying] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState("");
+  const [orderId, setOrderId] = useState(null);
 
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && handleClose();
@@ -14,23 +19,53 @@ export default function CartDrawer() {
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  // "Vai al checkout" porta alla schermata di pagamento PayPal.
+  // "Vai al checkout": serve l'accesso. Se l'utente non è loggato apriamo
+  // il pannello di accesso; altrimenti mostriamo la schermata di pagamento.
   const goToPayment = () => {
     if (items.length === 0) return;
+    setError("");
+    if (!isAuthenticated) {
+      openAuth();
+      return;
+    }
     setPaying(true);
   };
 
-  // Pagamento con PayPal (flusso dimostrativo: simula la connessione a PayPal).
-  // Per pagamenti reali serve il client ID PayPal + creazione/cattura ordine lato server.
-  const payWithPaypal = () => {
+  // Checkout reale: sincronizza il carrello locale col motore, poi crea
+  // l'ordine. (Senza chiavi Stripe il pagamento è simulato lato server.)
+  const completeCheckout = async () => {
     if (processing) return;
+    if (!isAuthenticated) {
+      openAuth();
+      return;
+    }
+    const missing = items.find((it) => !it.productId);
+    if (missing) {
+      setError("Ricarica la pagina e riprova: alcuni articoli non sono collegati al catalogo.");
+      return;
+    }
+    setError("");
     setProcessing(true);
-    setTimeout(() => {
-      setProcessing(false);
+    try {
+      // Riallinea il carrello del motore a quello mostrato a schermo.
+      await api.clearCart();
+      for (const it of items) {
+        await api.addToCart(it.productId, it.size, it.qty);
+      }
+      const { order, paid } = await api.checkout();
+      if (!paid) {
+        setError("Pagamento non completato. Riprova.");
+        return;
+      }
+      setOrderId(order?.id || null);
       setPaying(false);
       setDone(true);
       clear();
-    }, 1800);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handleClose = () => {
@@ -40,8 +75,15 @@ export default function CartDrawer() {
       setDone(false);
       setPaying(false);
       setProcessing(false);
+      setError("");
+      setOrderId(null);
     }, 500);
   };
+
+  // Numero ordine leggibile (prime 6 cifre dell'id reale, o fallback).
+  const orderNumber = orderId
+    ? String(orderId).replace(/-/g, "").slice(0, 6).toUpperCase()
+    : null;
 
   return (
     <div className={"fixed inset-0 z-[90] " + (cartOpen ? "" : "pointer-events-none")}>
@@ -86,7 +128,7 @@ export default function CartDrawer() {
             <div className="mt-2 w-full rounded-2xl border border-line bg-ink px-5 py-4 text-left font-mono text-xs">
               <div className="flex justify-between text-muted">
                 <span>Ordine</span>
-                <span className="text-bone">#KRM-{Math.floor(100000 + Math.random() * 899999)}</span>
+                <span className="text-bone">#KRM-{orderNumber || "------"}</span>
               </div>
               <div className="mt-2 flex justify-between text-muted">
                 <span>Consegna stimata</span>
@@ -134,7 +176,7 @@ export default function CartDrawer() {
             </div>
 
             <button
-              onClick={payWithPaypal}
+              onClick={completeCheckout}
               disabled={processing}
               className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[#ffc439] py-4 font-extrabold transition-transform duration-300 hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-80"
             >
@@ -153,12 +195,18 @@ export default function CartDrawer() {
             </button>
 
             <button
-              onClick={payWithPaypal}
+              onClick={completeCheckout}
               disabled={processing}
               className="mt-3 w-full rounded-full border border-[#2c2e2f] bg-[#2c2e2f] py-4 font-mono text-sm font-bold tracking-wider text-white uppercase transition-transform duration-300 hover:-translate-y-0.5 disabled:opacity-50"
             >
               Carta di debito o credito
             </button>
+
+            {error && (
+              <p className="mt-4 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-center font-mono text-[0.7rem] leading-relaxed tracking-wide text-red-300">
+                {error}
+              </p>
+            )}
 
             <p className="text-faint mt-4 text-center font-mono text-[0.58rem] leading-relaxed tracking-wider uppercase">
               🦈 Pagamento protetto · Verrai reindirizzato a PayPal

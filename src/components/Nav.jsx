@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "../lib/gsap";
 import { useCart } from "../store/cart";
+import { useAuth } from "../store/auth";
 import Logo from "./Logo";
-import AuthModal from "./AuthModal";
 
 export default function Nav() {
   const { count, openCart } = useCart();
+  const { user, isAuthenticated, logout, openAuth } = useAuth();
   const navRef = useRef(null);
   const [scrolled, setScrolled] = useState(false);
-  const [authOpen, setAuthOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Sfondo nero solo dopo aver superato l'hero (l'uomo col casco).
   useEffect(() => {
@@ -67,17 +68,50 @@ export default function Nav() {
           ))}
         </ul>
         <div className="flex items-center gap-3">
-          <button
-            data-nav
-            onClick={() => setAuthOpen(true)}
-            aria-label="Accedi al tuo account"
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-line text-bone transition-colors duration-300 hover:border-bone/40"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="shrink-0">
-              <circle cx="12" cy="8" r="3.6" stroke="currentColor" strokeWidth="1.7" />
-              <path d="M4.5 19.5a7.5 7.5 0 0 1 15 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-            </svg>
-          </button>
+          {isAuthenticated ? (
+            <div data-nav className="relative">
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-label={`Account di ${user.username}`}
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-volt/50 bg-volt/10 font-mono text-sm font-bold text-volt uppercase transition-colors duration-300 hover:border-volt"
+              >
+                {user.username.charAt(0)}
+              </button>
+              {menuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                  <div className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-2xl border border-line bg-elevated shadow-xl">
+                    <div className="border-b border-line px-4 py-3">
+                      <p className="font-mono text-[0.6rem] tracking-wider text-muted uppercase">Connesso come</p>
+                      <p className="truncate font-display text-lg text-bone">{user.username}</p>
+                      <p className="text-faint truncate text-xs">{user.email}</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        logout();
+                        setMenuOpen(false);
+                      }}
+                      className="block w-full px-4 py-3 text-left font-mono text-xs tracking-wider text-bone uppercase transition-colors hover:bg-ink"
+                    >
+                      Esci
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <button
+              data-nav
+              onClick={openAuth}
+              aria-label="Accedi al tuo account"
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-line text-bone transition-colors duration-300 hover:border-bone/40"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="shrink-0">
+                <circle cx="12" cy="8" r="3.6" stroke="currentColor" strokeWidth="1.7" />
+                <path d="M4.5 19.5a7.5 7.5 0 0 1 15 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
 
           <button
             data-nav
@@ -98,8 +132,6 @@ export default function Nav() {
           </button>
         </div>
       </nav>
-
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
     </header>
   );
 }

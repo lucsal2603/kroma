@@ -12,7 +12,7 @@ export function CartProvider({ children }) {
     setItems((prev) => {
       const found = prev.find((it) => it.id === id);
       if (found) return prev.map((it) => (it.id === id ? { ...it, qty: it.qty + 1 } : it));
-      return [...prev, { id, code: p.code, brand: p.brand, model: p.model, name: p.name, price: p.price, img: p.img, color: p.color, size, qty: 1 }];
+      return [...prev, { id, productId: p.id, code: p.code, brand: p.brand, model: p.model, name: p.name, price: p.price, img: p.img, color: p.color, size, qty: 1 }];
     });
     setProduct(null);
     setCartOpen(true);
