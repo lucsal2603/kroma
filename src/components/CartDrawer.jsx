@@ -3,6 +3,7 @@ import { formatEuro } from "../data/products";
 import { useCart } from "../store/cart";
 import { useAuth } from "../store/auth";
 import { api } from "../lib/api";
+import PaypalCheckout from "./PaypalCheckout";
 
 export default function CartDrawer() {
   const { items, count, subtotal, setQty, remove, clear, cartOpen, closeCart } = useCart();
@@ -21,6 +22,10 @@ export default function CartDrawer() {
     phone: "",
   });
 
+  // Configurazione PayPal letta dal backend (client id pubblico + valuta).
+  // Se PayPal non è configurato, si usa il pagamento simulato come ripiego.
+  const [pp, setPp] = useState({ loading: true, configured: false, clientId: "", currency: "EUR" });
+
   const setShipField = (field) => (e) =>
     setShip((s) => ({ ...s, [field]: e.target.value }));
 
@@ -29,6 +34,71 @@ export default function CartDrawer() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
+
+  // Carica la configurazione PayPal una volta sola.
+  useEffect(() => {
+    let active = true;
+    api
+      .getPaypalConfig()
+      .then((c) => {
+        if (active)
+          setPp({
+            loading: false,
+            configured: Boolean(c.configured && c.clientId),
+            clientId: c.clientId || "",
+            currency: c.currency || "EUR",
+          });
+      })
+      .catch(() => {
+        if (active) setPp({ loading: false, configured: false, clientId: "", currency: "EUR" });
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Controlla i dati di consegna (e il login). Imposta l'errore e ritorna false
+  // se qualcosa non va. Usata sia dal pagamento simulato sia da PayPal.
+  const validateShipping = () => {
+    if (!isAuthenticated) {
+      openAuth();
+      return false;
+    }
+    if (items.find((it) => !it.productId)) {
+      setError("Ricarica la pagina e riprova: alcuni articoli non sono collegati al catalogo.");
+      return false;
+    }
+    const required = ["name", "address", "zip", "city", "province"];
+    if (required.some((k) => !ship[k].trim())) {
+      setError("Compila tutti i dati di consegna (telefono escluso).");
+      return false;
+    }
+    if (!/^\d{5}$/.test(ship.zip.trim())) {
+      setError("Il CAP deve avere 5 cifre.");
+      return false;
+    }
+    if (ship.province.trim().length !== 2) {
+      setError("La provincia va indicata con la sigla di 2 lettere (es. BS).");
+      return false;
+    }
+    setError("");
+    return true;
+  };
+
+  // Riallinea il carrello del motore a quello mostrato a schermo.
+  const syncServerCart = async () => {
+    await api.clearCart();
+    for (const it of items) {
+      await api.addToCart(it.productId, it.size, it.qty);
+    }
+  };
+
+  const onPaid = (order) => {
+    setOrderId(order?.id || null);
+    setPaying(false);
+    setDone(true);
+    clear();
+  };
 
   // "Vai al checkout": serve l'accesso. Se l'utente non è loggato apriamo
   // il pannello di accesso; altrimenti mostriamo la schermata di pagamento.
@@ -42,56 +112,55 @@ export default function CartDrawer() {
     setPaying(true);
   };
 
-  // Checkout reale: sincronizza il carrello locale col motore, poi crea
-  // l'ordine. (Senza chiavi Stripe il pagamento è simulato lato server.)
+  // Pagamento simulato (ripiego quando PayPal non è configurato).
   const completeCheckout = async () => {
     if (processing) return;
-    if (!isAuthenticated) {
-      openAuth();
-      return;
-    }
-    const missing = items.find((it) => !it.productId);
-    if (missing) {
-      setError("Ricarica la pagina e riprova: alcuni articoli non sono collegati al catalogo.");
-      return;
-    }
-    // Controllo dei dati di consegna
-    const required = ["name", "address", "zip", "city", "province"];
-    if (required.some((k) => !ship[k].trim())) {
-      setError("Compila tutti i dati di consegna (telefono escluso).");
-      return;
-    }
-    if (!/^\d{5}$/.test(ship.zip.trim())) {
-      setError("Il CAP deve avere 5 cifre.");
-      return;
-    }
-    if (ship.province.trim().length !== 2) {
-      setError("La provincia va indicata con la sigla di 2 lettere (es. BS).");
-      return;
-    }
-    setError("");
+    if (!validateShipping()) return;
     setProcessing(true);
     try {
-      // Riallinea il carrello del motore a quello mostrato a schermo.
-      await api.clearCart();
-      for (const it of items) {
-        await api.addToCart(it.productId, it.size, it.qty);
-      }
+      await syncServerCart();
       const { order, paid } = await api.checkout({ shipping: ship });
       if (!paid) {
         setError("Pagamento non completato. Riprova.");
         return;
       }
-      setOrderId(order?.id || null);
-      setPaying(false);
-      setDone(true);
-      clear();
+      onPaid(order);
     } catch (err) {
       setError(err.message);
     } finally {
       setProcessing(false);
     }
   };
+
+  // --- PayPal ---------------------------------------------------------
+  // 1) all'apertura del popup ricontrolliamo i dati di consegna
+  // 2) creiamo l'ordine PayPal con il totale del carrello (lato server)
+  // 3) a pagamento approvato lo incassiamo e creiamo l'ordine KROMA
+  const paypalCreateOrder = async () => {
+    await syncServerCart();
+    const { id } = await api.createPaypalOrder();
+    return id;
+  };
+
+  const paypalApprove = async (orderID) => {
+    setProcessing(true);
+    setError("");
+    try {
+      const { order, paid } = await api.capturePaypalOrder(orderID, ship);
+      if (!paid) {
+        setError("Pagamento non completato. Riprova.");
+        return;
+      }
+      onPaid(order);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const paypalError = () =>
+    setError("Si è verificato un problema con PayPal. Riprova tra poco.");
 
   const handleClose = () => {
     closeCart();
@@ -260,32 +329,57 @@ export default function CartDrawer() {
               </span>
             </div>
 
-            <button
-              onClick={completeCheckout}
-              disabled={processing}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[#ffc439] py-4 font-extrabold transition-transform duration-300 hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-80"
-            >
-              {processing ? (
-                <span className="flex items-center gap-2 font-mono text-sm tracking-wider text-[#003087] uppercase">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#003087] border-t-transparent" />
-                  Connessione a PayPal…
-                </span>
-              ) : (
-                <span className="text-lg italic">
-                  <span className="font-mono text-sm font-bold tracking-wide text-[#003087] not-italic">Paga con </span>
-                  <span style={{ color: "#003087" }}>Pay</span>
-                  <span style={{ color: "#009cde" }}>Pal</span>
-                </span>
-              )}
-            </button>
+            {pp.loading ? (
+              <div className="mt-5 flex justify-center py-3">
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-volt border-t-transparent" />
+              </div>
+            ) : pp.configured ? (
+              <>
+                <PaypalCheckout
+                  clientId={pp.clientId}
+                  currency={pp.currency}
+                  onClickValidate={validateShipping}
+                  createOrder={paypalCreateOrder}
+                  onApprove={paypalApprove}
+                  onError={paypalError}
+                />
+                {processing && (
+                  <p className="mt-3 flex items-center justify-center gap-2 font-mono text-[0.7rem] tracking-wider text-muted uppercase">
+                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-volt border-t-transparent" />
+                    Confermo l'ordine…
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={completeCheckout}
+                  disabled={processing}
+                  className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[#ffc439] py-4 font-extrabold transition-transform duration-300 hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-80"
+                >
+                  {processing ? (
+                    <span className="flex items-center gap-2 font-mono text-sm tracking-wider text-[#003087] uppercase">
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#003087] border-t-transparent" />
+                      Connessione a PayPal…
+                    </span>
+                  ) : (
+                    <span className="text-lg italic">
+                      <span className="font-mono text-sm font-bold tracking-wide text-[#003087] not-italic">Paga con </span>
+                      <span style={{ color: "#003087" }}>Pay</span>
+                      <span style={{ color: "#009cde" }}>Pal</span>
+                    </span>
+                  )}
+                </button>
 
-            <button
-              onClick={completeCheckout}
-              disabled={processing}
-              className="mt-3 w-full rounded-full border border-[#2c2e2f] bg-[#2c2e2f] py-4 font-mono text-sm font-bold tracking-wider text-white uppercase transition-transform duration-300 hover:-translate-y-0.5 disabled:opacity-50"
-            >
-              Carta di debito o credito
-            </button>
+                <button
+                  onClick={completeCheckout}
+                  disabled={processing}
+                  className="mt-3 w-full rounded-full border border-[#2c2e2f] bg-[#2c2e2f] py-4 font-mono text-sm font-bold tracking-wider text-white uppercase transition-transform duration-300 hover:-translate-y-0.5 disabled:opacity-50"
+                >
+                  Carta di debito o credito
+                </button>
+              </>
+            )}
 
             {error && (
               <p className="mt-4 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-center font-mono text-[0.7rem] leading-relaxed tracking-wide text-red-300">

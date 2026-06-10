@@ -65,6 +65,12 @@ export const api = {
   checkout: (payload = {}) => request("/checkout", { method: "POST", auth: true, body: payload }),
   getOrders: () => request("/orders", { auth: true }),
 
+  // --- PayPal ---
+  getPaypalConfig: () => request("/paypal/config"),
+  createPaypalOrder: () => request("/paypal/create-order", { method: "POST", auth: true }),
+  capturePaypalOrder: (orderID, shipping) =>
+    request("/paypal/capture-order", { method: "POST", auth: true, body: { orderID, shipping } }),
+
   // --- Admin (richiede account amministratore) ---
   getAllOrders: () => request("/admin/orders", { auth: true }),
   updateStock: (productId, stock) =>

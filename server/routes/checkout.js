@@ -1,182 +1,41 @@
 // POST /checkout (richiede login):
-//   1. legge il carrello dell'utente
-//   2. crea l'ordine + righe d'ordine (in transazione)
-//   3. effettua il pagamento con Stripe (o lo simula in dev)
-//   4. invia email di conferma al cliente + notifica Telegram al titolare
+//   crea l'ordine dal carrello con pagamento SIMULATO.
+//   Usato come ripiego quando PayPal non è ancora configurato: così il sito
+//   resta provabile end-to-end anche senza pagamento reale.
+// GET /orders (richiede login): storico ordini dell'utente.
 import { Router } from "express";
-import { pool, query } from "../db/index.js";
+import { query } from "../db/index.js";
 import { requireAuth } from "../lib/auth.js";
-import { stripe, stripeConfigured } from "../lib/stripe.js";
-import { sendOrderConfirmation } from "../lib/orderEmail.js";
-import { sendTelegram } from "../lib/telegram.js";
+import { createOrderFromCart, normalizeShipping } from "../lib/orders.js";
 
 const router = Router();
-const euro = (n) => "€ " + Number(n).toFixed(2).replace(".", ",");
 
 router.post("/checkout", requireAuth, async (req, res) => {
-  const client = await pool.connect();
-  let committed = false;
   try {
-    // Utente (email/username) per la conferma
-    const userRes = await client.query(
-      `select email, username from users where id = $1`,
-      [req.user.id]
-    );
-    const user = userRes.rows[0];
-    if (!user) return res.status(404).json({ error: "Utente non trovato." });
-
-    const customerEmail = (req.body?.email || user.email).trim().toLowerCase();
-
-    // Dati di spedizione (obbligatori per poter spedire)
-    const ship = req.body?.shipping || {};
-    const shipping = {
-      name: String(ship.name || "").trim(),
-      address: String(ship.address || "").trim(),
-      zip: String(ship.zip || "").trim(),
-      city: String(ship.city || "").trim(),
-      province: String(ship.province || "").trim().toUpperCase(),
-      phone: String(ship.phone || "").trim(),
-    };
-    const missing = ["name", "address", "zip", "city", "province"].filter((k) => !shipping[k]);
-    if (missing.length) {
-      return res.status(400).json({ error: "Dati di spedizione mancanti." });
-    }
-
-    // Carrello con dati prodotto
-    const cartRes = await client.query(
-      `select ci.product_id, ci.size, ci.quantity,
-              p.name, p.color, p.price
-         from cart_items ci
-         join products p on p.id = ci.product_id
-        where ci.user_id = $1
-        order by ci.created_at`,
-      [req.user.id]
-    );
-    const cart = cartRes.rows;
-    if (cart.length === 0) {
-      return res.status(400).json({ error: "Il carrello è vuoto." });
-    }
-
-    const items = cart.map((r) => ({
-      productId: r.product_id,
-      name: r.name,
-      color: r.color,
-      size: r.size,
-      quantity: r.quantity,
-      price: Number(r.price),
-      subtotal: Number(r.price) * r.quantity,
-    }));
-    const total = items.reduce((s, i) => s + i.subtotal, 0);
-
-    // --- Transazione: crea ordine + righe -----------------------------
-    await client.query("begin");
-
-    const orderRes = await client.query(
-      `insert into orders (user_id, status, total, customer_email, shipping)
-       values ($1, 'pending', $2, $3, $4)
-       returning id, created_at`,
-      [req.user.id, total, customerEmail, JSON.stringify(shipping)]
-    );
-    const orderId = orderRes.rows[0].id;
-
-    for (const i of items) {
-      await client.query(
-        `insert into order_items (order_id, product_id, size, quantity, unit_price)
-         values ($1, $2, $3, $4, $5)`,
-        [orderId, i.productId, i.size, i.quantity, i.price]
-      );
-
-      // Scala la giacenza del casco acquistato. La condizione "stock >= quantità"
-      // fa sì che, se non ce ne sono abbastanza, nessuna riga venga aggiornata:
-      // in quel caso annulliamo l'ordine e avvisiamo il cliente.
-      const dec = await client.query(
-        `update products set stock = stock - $1 where id = $2 and stock >= $1`,
-        [i.quantity, i.productId]
-      );
-      if (dec.rowCount === 0) {
-        const e = new Error(`"${i.name} ${i.color}" non è più disponibile nella quantità richiesta.`);
-        e.statusCode = 409;
-        throw e;
-      }
-    }
-
-    // --- Pagamento ----------------------------------------------------
-    let status = "paid";
-    let paymentIntentId = null;
-    let clientSecret = null;
-
-    if (stripeConfigured) {
-      const pi = await stripe.paymentIntents.create({
-        amount: Math.round(total * 100), // centesimi
-        currency: "eur",
-        metadata: { orderId, userId: req.user.id },
-        ...(req.body?.paymentMethodId
-          ? { payment_method: req.body.paymentMethodId, confirm: true }
-          : { automatic_payment_methods: { enabled: true } }),
-      });
-      paymentIntentId = pi.id;
-      clientSecret = pi.client_secret;
-      // Pagato solo se Stripe conferma subito; altrimenti resta pending
-      status = pi.status === "succeeded" ? "paid" : "pending";
-    }
-    // Se Stripe non è configurato: dev mode -> pagamento simulato (status 'paid')
-
-    await client.query(
-      `update orders set status = $1, stripe_payment_intent_id = $2 where id = $3`,
-      [status, paymentIntentId, orderId]
-    );
-
-    // Se pagato, svuota il carrello nella stessa transazione
-    if (status === "paid") {
-      await client.query(`delete from cart_items where user_id = $1`, [req.user.id]);
-    }
-
-    await client.query("commit");
-    committed = true;
-
-    // --- Post-pagamento: email + Telegram (fuori transazione) ---------
-    if (status === "paid") {
-      // Email di conferma al cliente
-      sendOrderConfirmation(customerEmail, {
-        id: orderId,
-        total,
-        items,
-        customerName: user.username,
-        shipping,
-      }).catch((e) => console.error("order email error:", e.message));
-
-      // Notifica al titolare
-      const tg =
-        `🦈 <b>Nuovo ordine KROMA</b>\n` +
-        `#${String(orderId).slice(0, 8).toUpperCase()} · ${euro(total)}\n` +
-        `Cliente: ${user.username} (${customerEmail})\n\n` +
-        `📦 <b>Spedire a:</b>\n` +
-        `${shipping.name}\n` +
-        `${shipping.address}\n` +
-        `${shipping.zip} ${shipping.city} (${shipping.province})\n` +
-        (shipping.phone ? `Tel: ${shipping.phone}\n` : "") +
-        `\n` +
-        items.map((i) => `• ${i.name} ${i.color} · ${i.size} ×${i.quantity}`).join("\n");
-      sendTelegram(tg).catch((e) => console.error("telegram error:", e.message));
-    }
-
+    const shipping = normalizeShipping(req.body?.shipping);
+    const result = await createOrderFromCart({
+      userId: req.user.id,
+      shipping,
+      status: "paid", // pagamento simulato: ordine subito "pagato"
+      customerEmail: req.body?.email || null,
+      enforceStock: true,
+    });
     return res.status(201).json({
-      order: { id: orderId, status, total, items, customerEmail },
-      ...(clientSecret ? { clientSecret } : {}),
-      paid: status === "paid",
+      order: {
+        id: result.orderId,
+        status: result.status,
+        total: result.total,
+        items: result.items,
+        customerEmail: result.customerEmail,
+      },
+      paid: result.status === "paid",
     });
   } catch (err) {
-    if (!committed) {
-      try { await client.query("rollback"); } catch {}
-    }
-    // Errore "previsto" (es. casco esaurito): mostriamo il messaggio al cliente.
     if (err.statusCode) {
       return res.status(err.statusCode).json({ error: err.message });
     }
     console.error("checkout error:", err);
     return res.status(500).json({ error: "Errore durante il checkout." });
-  } finally {
-    client.release();
   }
 });
 
