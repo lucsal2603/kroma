@@ -1,0 +1,22 @@
+{
+  "name": "kroma-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Backend e-commerce KROMA — Node.js + Express + PostgreSQL/Supabase",
+  "scripts": {
+    "db:migrate": "node db/migrate.js",
+    "dev": "node --watch server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^16.4.5",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^8.0.10",
+    "pg": "^8.13.1",
+    "stripe": "^22.2.0"
+  }
+}
