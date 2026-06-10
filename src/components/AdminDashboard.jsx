@@ -222,94 +222,103 @@ function AddProductForm({ onClose, onCreated, brands }) {
   const field = "w-full rounded-xl border border-line bg-ink px-4 py-3 text-bone outline-none focus:border-volt/60";
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm sm:p-8">
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm sm:p-6">
       <form
         onSubmit={submit}
-        className="relative w-full max-w-lg rounded-3xl border border-line bg-elevated p-6 sm:p-8"
+        className="relative flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-line bg-elevated"
       >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Chiudi"
-          className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full border border-line text-bone transition-colors hover:border-bone/40"
-        >
-          ✕
-        </button>
-
-        <h3 className="font-display text-3xl text-bone">Aggiungi prodotto</h3>
-        <p className="text-muted mt-1 text-sm">Comparirà subito nel negozio, vicino agli altri.</p>
-
-        <div className="mt-6 flex flex-col gap-4">
+        {/* Intestazione fissa */}
+        <div className="flex items-start justify-between gap-3 border-b border-line px-5 py-4 sm:px-7">
           <div>
-            <label className="eyebrow mb-2 block text-[0.6rem]">Nome</label>
-            <input className={field} value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Guanti racing" />
+            <h3 className="font-display text-2xl text-bone">Aggiungi prodotto</h3>
+            <p className="text-muted mt-0.5 text-xs">Comparirà subito nel negozio.</p>
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Chiudi"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-bone transition-colors hover:border-bone/40"
+          >
+            ✕
+          </button>
+        </div>
 
-          <div>
-            <label className="eyebrow mb-2 block text-[0.6rem]">Marca / Categoria</label>
-            <div className="flex flex-wrap gap-2">
-              {cats.map((c) => (
+        {/* Corpo scorrevole */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-7">
+          <div className="flex flex-col gap-3.5">
+            <div>
+              <label className="eyebrow mb-1.5 block text-[0.6rem]">Nome</label>
+              <input className={field} value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Guanti racing" />
+            </div>
+
+            <div>
+              <label className="eyebrow mb-1.5 block text-[0.6rem]">Marca / Categoria</label>
+              <div className="flex flex-wrap gap-2">
+                {cats.map((c) => (
+                  <button
+                    type="button"
+                    key={c}
+                    onClick={() => setBrand(brand === c ? "" : c)}
+                    className={
+                      "rounded-full px-3.5 py-1.5 font-mono text-[0.7rem] tracking-wider uppercase transition-colors " +
+                      (brand === c
+                        ? "border border-volt bg-volt/15 text-volt"
+                        : "border border-line text-muted hover:text-bone")
+                    }
+                  >
+                    {c}
+                  </button>
+                ))}
                 <button
                   type="button"
-                  key={c}
-                  onClick={() => setBrand(brand === c ? "" : c)}
-                  className={
-                    "rounded-full px-4 py-2 font-mono text-xs tracking-wider uppercase transition-colors " +
-                    (brand === c
-                      ? "border border-volt bg-volt/15 text-volt"
-                      : "border border-line text-muted hover:text-bone")
-                  }
+                  onClick={() => setShowNewCat(true)}
+                  className="rounded-full border border-dashed border-line px-3.5 py-1.5 font-mono text-[0.7rem] tracking-wider text-bone uppercase transition-colors hover:border-volt/60"
                 >
-                  {c}
+                  + Nuova
                 </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => setShowNewCat(true)}
-                className="rounded-full border border-dashed border-line px-4 py-2 font-mono text-xs tracking-wider text-bone uppercase transition-colors hover:border-volt/60"
-              >
-                + Nuova
-              </button>
+              </div>
+              <p className="text-faint mt-1.5 font-mono text-[0.58rem]">Bollino sulla foto. Se non scegli nulla sarà "KROMA".</p>
             </div>
-            <p className="text-faint mt-1.5 font-mono text-[0.58rem]">È il bollino mostrato sulla foto. Se non scegli nulla sarà "KROMA".</p>
-          </div>
 
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="eyebrow mb-2 block text-[0.6rem]">Prezzo (EUR)</label>
-              <input className={field} type="number" min="0" step="1" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="120" />
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="eyebrow mb-1.5 block text-[0.6rem]">Prezzo (EUR)</label>
+                <input className={field} type="number" min="0" step="1" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="120" />
+              </div>
+              <div className="flex-1">
+                <label className="eyebrow mb-1.5 block text-[0.6rem]">Giacenza</label>
+                <input className={field} type="number" min="0" value={stock} onChange={(e) => setStock(e.target.value)} />
+              </div>
             </div>
-            <div className="flex-1">
-              <label className="eyebrow mb-2 block text-[0.6rem]">Giacenza</label>
-              <input className={field} type="number" min="0" value={stock} onChange={(e) => setStock(e.target.value)} />
+
+            <div>
+              <label className="eyebrow mb-1.5 block text-[0.6rem]">Etichetta (facoltativa)</label>
+              <input className={field} value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Es. 🆕 novità" />
+            </div>
+
+            <div>
+              <label className="eyebrow mb-1.5 block text-[0.6rem]">Descrizione</label>
+              <textarea className={field + " min-h-[70px] resize-y"} value={blurb} onChange={(e) => setBlurb(e.target.value)} placeholder="Racconta il prodotto in due righe…" />
+            </div>
+
+            <div className="flex gap-3">
+              <ImagePicker label="Foto principale" value={img} onPick={pickImage(setImg)} onClear={() => setImg("")} />
+              <ImagePicker label="Seconda foto (facolt.)" value={imgBack} onPick={pickImage(setImgBack)} onClear={() => setImgBack("")} />
             </div>
           </div>
+        </div>
 
-          <div>
-            <label className="eyebrow mb-2 block text-[0.6rem]">Etichetta (facoltativa)</label>
-            <input className={field} value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Es. 🆕 novità" />
-          </div>
-
-          <div>
-            <label className="eyebrow mb-2 block text-[0.6rem]">Descrizione</label>
-            <textarea className={field + " min-h-[90px] resize-y"} value={blurb} onChange={(e) => setBlurb(e.target.value)} placeholder="Racconta il prodotto in due righe…" />
-          </div>
-
-          <div className="flex gap-4">
-            <ImagePicker label="Foto principale" value={img} onPick={pickImage(setImg)} onClear={() => setImg("")} />
-            <ImagePicker label="Seconda foto (facoltativa)" value={imgBack} onPick={pickImage(setImgBack)} onClear={() => setImgBack("")} />
-          </div>
-
+        {/* Piè di pagina fisso: pulsante sempre raggiungibile */}
+        <div className="border-t border-line px-5 py-4 sm:px-7">
           {error && (
-            <p className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-center font-mono text-[0.7rem] text-red-300">
+            <p className="mb-3 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-center font-mono text-[0.7rem] text-red-300">
               {error}
             </p>
           )}
-
           <button
             type="submit"
             disabled={busy}
-            className="mt-2 rounded-full bg-volt px-8 py-4 font-mono text-sm font-bold tracking-wider text-black uppercase transition-transform duration-300 hover:-translate-y-0.5 disabled:opacity-50"
+            className="w-full rounded-full bg-volt px-8 py-3.5 font-mono text-sm font-bold tracking-wider text-black uppercase transition-transform duration-300 hover:-translate-y-0.5 disabled:opacity-50"
           >
             {busy ? "Creo il prodotto…" : "🦈 Crea prodotto"}
           </button>
@@ -335,17 +344,17 @@ function AddProductForm({ onClose, onCreated, brands }) {
 function ImagePicker({ label, value, onPick, onClear }) {
   return (
     <div className="flex-1">
-      <label className="eyebrow mb-2 block text-[0.6rem]">{label}</label>
-      <label className="flex aspect-square cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-line bg-ink transition-colors hover:border-volt/50">
+      <label className="eyebrow mb-1.5 block text-[0.6rem]">{label}</label>
+      <label className="flex h-24 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-line bg-ink transition-colors hover:border-volt/50 sm:h-28">
         {value ? (
           <img src={value} alt="" className="h-full w-full object-cover" />
         ) : (
-          <span className="text-faint px-2 text-center font-mono text-[0.6rem] uppercase">+ Carica foto</span>
+          <span className="text-faint px-2 text-center font-mono text-[0.58rem] uppercase">+ Carica foto</span>
         )}
         <input type="file" accept="image/*" className="hidden" onChange={onPick} />
       </label>
       {value && (
-        <button type="button" onClick={onClear} className="mt-1.5 font-mono text-[0.6rem] text-muted underline hover:text-bone">
+        <button type="button" onClick={onClear} className="mt-1 font-mono text-[0.6rem] text-muted underline hover:text-bone">
           rimuovi
         </button>
       )}
