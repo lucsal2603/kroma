@@ -20,7 +20,7 @@ const fmtDate = (iso) =>
 const orderNumber = (id) => String(id).replace(/-/g, "").slice(0, 6).toUpperCase();
 
 // --- Riga prodotto con editor della giacenza + elimina ---------------
-function StockRow({ product, onSaved, onDeleted }) {
+function StockRow({ product, onSaved, onDeleted, onEdit }) {
   const [value, setValue] = useState(String(product.stock ?? 0));
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(0);
@@ -85,6 +85,14 @@ function StockRow({ product, onSaved, onDeleted }) {
           className="rounded-xl border border-volt/50 bg-volt/10 px-4 py-2 font-mono text-xs tracking-wider text-volt uppercase transition-colors hover:border-volt disabled:cursor-not-allowed disabled:opacity-40"
         >
           {saving ? "…" : "Salva"}
+        </button>
+        <button
+          onClick={() => onEdit(product)}
+          aria-label="Modifica prodotto"
+          title="Modifica prodotto"
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-line text-muted transition-colors hover:border-volt/60 hover:text-bone"
+        >
+          ✎
         </button>
         <button
           onClick={remove}
@@ -165,20 +173,24 @@ function NewCategoryForm({ existing, onClose, onCreate }) {
   );
 }
 
-// --- Form "Aggiungi prodotto" (finestra modale) ----------------------
-function AddProductForm({ onClose, onCreated, brands }) {
-  const [name, setName] = useState("");
-  const [brand, setBrand] = useState("");
+// --- Form prodotto (crea o modifica, finestra modale) ----------------
+function ProductForm({ onClose, onCreated, onUpdated, brands, product }) {
+  const editing = !!product;
+  const [name, setName] = useState(product?.name || "");
+  const [brand, setBrand] = useState(product?.brand || "");
   const [cats, setCats] = useState(brands);
   const [showNewCat, setShowNewCat] = useState(false);
-  const [price, setPrice] = useState("");
-  const [stock, setStock] = useState("5");
-  const [tag, setTag] = useState("");
-  const [blurb, setBlurb] = useState("");
-  const [img, setImg] = useState("");        // data URL foto principale
-  const [imgBack, setImgBack] = useState(""); // data URL foto secondaria
+  const [price, setPrice] = useState(product ? String(product.price) : "");
+  const [stock, setStock] = useState(product ? String(product.stock ?? 0) : "5");
+  const [tag, setTag] = useState(product?.tag || "");
+  const [blurb, setBlurb] = useState(product?.blurb || "");
+  const [img, setImg] = useState(product?.img || "");        // data URL/URL foto principale
+  const [imgBack, setImgBack] = useState(product?.imgBack || ""); // foto secondaria
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Per non rispedire al server immagini enormi se non sono state cambiate.
+  const initialImg = product?.img || "";
+  const initialImgBack = product?.imgBack || "";
 
   const pickImage = (setter) => async (e) => {
     const file = e.target.files?.[0];
@@ -201,17 +213,33 @@ function AddProductForm({ onClose, onCreated, brands }) {
     if (!img) return setError("Carica almeno una foto del prodotto.");
     setBusy(true);
     try {
-      const { product } = await api.createProduct({
-        name: name.trim(),
-        brand: brand.trim(),
-        price: p,
-        stock: stock === "" ? 0 : Number(stock),
-        tag: tag.trim(),
-        blurb: blurb.trim(),
-        img,
-        imgBack,
-      });
-      onCreated(product);
+      if (editing) {
+        // In modifica mando le immagini solo se cambiate (sono pesanti).
+        const payload = {
+          name: name.trim(),
+          brand: brand.trim(),
+          price: p,
+          stock: stock === "" ? 0 : Number(stock),
+          tag: tag.trim(),
+          blurb: blurb.trim(),
+        };
+        if (img !== initialImg) payload.img = img;
+        if (imgBack !== initialImgBack) payload.imgBack = imgBack;
+        const { product: updated } = await api.updateProduct(product.id, payload);
+        onUpdated(updated);
+      } else {
+        const { product: created } = await api.createProduct({
+          name: name.trim(),
+          brand: brand.trim(),
+          price: p,
+          stock: stock === "" ? 0 : Number(stock),
+          tag: tag.trim(),
+          blurb: blurb.trim(),
+          img,
+          imgBack,
+        });
+        onCreated(created);
+      }
       onClose();
     } catch (err) {
       setError(err.message);
@@ -230,8 +258,10 @@ function AddProductForm({ onClose, onCreated, brands }) {
         {/* Intestazione fissa */}
         <div className="flex items-start justify-between gap-3 border-b border-line px-5 py-4 sm:px-7">
           <div>
-            <h3 className="font-display text-2xl text-bone">Aggiungi prodotto</h3>
-            <p className="text-muted mt-0.5 text-xs">Comparirà subito nel negozio.</p>
+            <h3 className="font-display text-2xl text-bone">{editing ? "Modifica prodotto" : "Aggiungi prodotto"}</h3>
+            <p className="text-muted mt-0.5 text-xs">
+              {editing ? "Le modifiche si vedono subito nel negozio." : "Comparirà subito nel negozio."}
+            </p>
           </div>
           <button
             type="button"
@@ -320,7 +350,7 @@ function AddProductForm({ onClose, onCreated, brands }) {
             disabled={busy}
             className="w-full rounded-full bg-volt px-8 py-3.5 font-mono text-sm font-bold tracking-wider text-black uppercase transition-transform duration-300 hover:-translate-y-0.5 disabled:opacity-50"
           >
-            {busy ? "Creo il prodotto…" : "🦈 Crea prodotto"}
+            {busy ? "Salvo…" : editing ? "💾 Salva modifiche" : "🦈 Crea prodotto"}
           </button>
         </div>
 
@@ -370,6 +400,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const [editProduct, setEditProduct] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -399,7 +430,14 @@ export default function AdminDashboard() {
     setProducts((list) => list.map((p) => (p.id === id ? { ...p, stock } : p)));
 
   const onProductCreated = (product) => setProducts((list) => [product, ...list]);
+  const onProductUpdated = (product) =>
+    setProducts((list) => list.map((p) => (p.id === product.id ? { ...p, ...product } : p)));
   const onProductDeleted = (id) => setProducts((list) => list.filter((p) => p.id !== id));
+
+  const closeForm = () => {
+    setShowAdd(false);
+    setEditProduct(null);
+  };
 
   const revenue = orders
     .filter((o) => o.status === "paid" || o.status === "shipped")
@@ -481,7 +519,13 @@ export default function AdminDashboard() {
         ) : tab === "stock" ? (
           <div className="flex flex-col gap-3">
             {products.map((p) => (
-              <StockRow key={p.id} product={p} onSaved={onStockSaved} onDeleted={onProductDeleted} />
+              <StockRow
+                key={p.id}
+                product={p}
+                onSaved={onStockSaved}
+                onDeleted={onProductDeleted}
+                onEdit={setEditProduct}
+              />
             ))}
           </div>
         ) : orders.length === 0 ? (
@@ -549,10 +593,12 @@ export default function AdminDashboard() {
         )}
       </main>
 
-      {showAdd && (
-        <AddProductForm
-          onClose={() => setShowAdd(false)}
+      {(showAdd || editProduct) && (
+        <ProductForm
+          product={editProduct}
+          onClose={closeForm}
           onCreated={onProductCreated}
+          onUpdated={onProductUpdated}
           brands={Array.from(
             new Set(["ARAI", "Shoei", "AGV", "HJC", ...products.map((p) => p.brand).filter(Boolean)])
           )}

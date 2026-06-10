@@ -130,24 +130,62 @@ router.delete("/admin/products/:id", async (req, res) => {
 });
 
 // --- PATCH /admin/products/:id --------------------------------------
-// Aggiorna la giacenza disponibile di un casco.
+// Aggiorna i campi passati (anche solo la giacenza). Aggiorna SOLO i campi
+// presenti nel body, così resta compatibile con il salvataggio rapido stock.
 router.patch("/admin/products/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const stock = Number(req.body?.stock);
-    if (!Number.isInteger(stock) || stock < 0) {
-      return res.status(400).json({ error: "La giacenza deve essere un numero intero ≥ 0." });
+    const b = req.body || {};
+    const sets = [];
+    const vals = [];
+    const add = (col, val) => {
+      vals.push(val);
+      sets.push(`${col} = $${vals.length}`);
+    };
+
+    if ("name" in b) {
+      const name = String(b.name || "").trim();
+      if (!name) return res.status(400).json({ error: "Il nome non può essere vuoto." });
+      add("name", name);
+    }
+    if ("brand" in b) add("brand", String(b.brand || "").trim() || "KROMA");
+    if ("price" in b) {
+      const price = Number(b.price);
+      if (!Number.isFinite(price) || price <= 0)
+        return res.status(400).json({ error: "Il prezzo deve essere un numero maggiore di 0." });
+      add("price", price);
+    }
+    if ("stock" in b) {
+      const stock = Number(b.stock);
+      if (!Number.isInteger(stock) || stock < 0)
+        return res.status(400).json({ error: "La giacenza deve essere un numero intero ≥ 0." });
+      add("stock", stock);
+    }
+    if ("tag" in b) add("tag", String(b.tag || "").trim() || null);
+    if ("blurb" in b) add("blurb", String(b.blurb || "").trim() || null);
+    if ("img" in b) {
+      const img = String(b.img || "").trim();
+      if (!isValidImage(img)) return res.status(400).json({ error: "Foto principale non valida." });
+      add("img_url", img);
+    }
+    if ("imgBack" in b) {
+      const imgBack = String(b.imgBack || "").trim();
+      if (imgBack && !isValidImage(imgBack)) return res.status(400).json({ error: "La seconda foto non è valida." });
+      add("img_back_url", imgBack || null);
     }
 
+    if (!sets.length) return res.status(400).json({ error: "Niente da aggiornare." });
+
+    vals.push(id);
     const { rows } = await query(
-      `update products set stock = $1 where id = $2 returning id, code, name, stock`,
-      [stock, id]
+      `update products set ${sets.join(", ")} where id = $${vals.length} returning *`,
+      vals
     );
     if (!rows[0]) return res.status(404).json({ error: "Prodotto non trovato." });
-    return res.json({ product: rows[0] });
+    return res.json({ product: toProduct(rows[0]) });
   } catch (err) {
-    console.error("admin stock error:", err);
-    return res.status(500).json({ error: "Errore nell'aggiornamento della giacenza." });
+    console.error("admin update product error:", err);
+    return res.status(500).json({ error: "Errore nell'aggiornamento del prodotto." });
   }
 });
 

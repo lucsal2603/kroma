@@ -77,6 +77,8 @@ export const api = {
     request(`/admin/products/${productId}`, { method: "PATCH", auth: true, body: { stock } }),
   createProduct: (payload) =>
     request("/admin/products", { method: "POST", auth: true, body: payload }),
+  updateProduct: (productId, payload) =>
+    request(`/admin/products/${productId}`, { method: "PATCH", auth: true, body: payload }),
   deleteProduct: (productId) =>
     request(`/admin/products/${productId}`, { method: "DELETE", auth: true }),
 };
