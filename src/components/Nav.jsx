@@ -3,6 +3,7 @@ import { gsap } from "../lib/gsap";
 import { useCart } from "../store/cart";
 import { useAuth } from "../store/auth";
 import Logo from "./Logo";
+import OrdersModal from "./OrdersModal";
 
 export default function Nav() {
   const { count, openCart } = useCart();
@@ -10,6 +11,7 @@ export default function Nav() {
   const navRef = useRef(null);
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [ordersOpen, setOrdersOpen] = useState(false);
 
   // Sfondo nero solo dopo aver superato l'hero (l'uomo col casco).
   useEffect(() => {
@@ -88,6 +90,15 @@ export default function Nav() {
                     </div>
                     <button
                       onClick={() => {
+                        setOrdersOpen(true);
+                        setMenuOpen(false);
+                      }}
+                      className="block w-full border-b border-line px-4 py-3 text-left font-mono text-xs tracking-wider text-bone uppercase transition-colors hover:bg-ink"
+                    >
+                      I miei ordini
+                    </button>
+                    <button
+                      onClick={() => {
                         logout();
                         setMenuOpen(false);
                       }}
@@ -132,6 +143,8 @@ export default function Nav() {
           </button>
         </div>
       </nav>
+
+      <OrdersModal open={ordersOpen} onClose={() => setOrdersOpen(false)} />
     </header>
   );
 }
