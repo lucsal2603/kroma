@@ -4,9 +4,29 @@ const API_BASE = import.meta.env.VITE_API_URL || "https://kroma-backend.onrender
 
 const TOKEN_KEY = "kroma_token";
 
-export const getToken = () => localStorage.getItem(TOKEN_KEY);
-export const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
-export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+// localStorage può lanciare un errore su Safari in modalità privata / blindata:
+// lo avvolgiamo così il login non si rompe mai per questo motivo.
+export const getToken = () => {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+};
+export const setToken = (t) => {
+  try {
+    localStorage.setItem(TOKEN_KEY, t);
+  } catch {
+    /* storage non disponibile (Safari privato): si resta loggati solo per questa sessione */
+  }
+};
+export const clearToken = () => {
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* niente da fare */
+  }
+};
 
 // Chiamata generica al backend. Aggiunge il token se richiesto e
 // trasforma gli errori del server in eccezioni con un messaggio leggibile.

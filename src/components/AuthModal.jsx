@@ -107,7 +107,7 @@ export default function AuthModal({ open, onClose }) {
       />
       <div
         ref={panel}
-        className="relative w-full max-w-md overflow-hidden rounded-3xl border border-line bg-elevated p-8"
+        className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl border border-line bg-elevated p-8"
       >
         <button
           onClick={onClose}
