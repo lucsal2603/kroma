@@ -29,20 +29,24 @@ const fmt = (iso) =>
   });
 
 // Ogni admin ha il suo colore fisso: lo stesso nome → sempre lo stesso colore.
-// (Hash semplice del nome → indice nella palette.)
+// "lucsal" ha il giallo riservato; gli altri pescano da una palette che il
+// giallo non lo contiene, così resta unico per lucsal.
+const MY_NAME = "lucsal";
+const MY_COLOR = "#facc15"; // giallo (riservato a lucsal)
+
 const NAME_COLORS = [
-  "#d7ff3e", // volt
   "#7dd3fc", // azzurro
   "#f0abfc", // rosa
-  "#fbbf24", // ambra
   "#86efac", // verde
   "#fca5a5", // rosso tenue
   "#c4b5fd", // viola
   "#fdba74", // arancio
+  "#5eead4", // turchese
 ];
 
 const colorForName = (name) => {
   const s = String(name || "");
+  if (s.trim().toLowerCase() === MY_NAME) return MY_COLOR;
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return NAME_COLORS[h % NAME_COLORS.length];
