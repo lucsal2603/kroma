@@ -54,6 +54,16 @@ export default function Footer() {
           </button>
         </div>
 
+        {/* Avviso legale obbligatorio: i prodotti sono repliche omologate, non originali. */}
+        <div data-reveal className="mt-8 rounded-xl border border-line bg-elevated px-4 py-3">
+          <p className="text-muted font-mono text-[0.65rem] leading-relaxed tracking-wide">
+            ⚠️ <span className="text-bone font-semibold">Avviso:</span> i caschi venduti su KROMA sono{" "}
+            <span className="text-bone">repliche omologate UE</span> e{" "}
+            <span className="text-bone">non sono prodotti originali</span> dei marchi citati. I nomi
+            e i modelli dei marchi sono usati solo a scopo descrittivo.
+          </p>
+        </div>
+
         <div data-reveal className="text-faint mt-8 flex flex-wrap justify-between gap-3 font-mono text-[0.65rem] tracking-wider uppercase">
           <span>© 2026 KROMA — Milano Marittima, IT</span>
           <span>Indossa l'istinto selvaggio</span>

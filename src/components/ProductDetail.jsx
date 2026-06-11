@@ -162,6 +162,12 @@ export default function ProductDetail() {
               🦈 Aggiungi al carrello
             </button>
           </div>
+
+          {/* Avviso legale: replica omologata, non originale. */}
+          <p className="text-faint mt-5 font-mono text-[0.62rem] leading-relaxed tracking-wide">
+            ⚠️ Replica omologata UE — non è un prodotto originale del marchio citato. Nomi e modelli
+            sono indicati solo a scopo descrittivo.
+          </p>
         </div>
       </div>
     </div>
