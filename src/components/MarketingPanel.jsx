@@ -51,6 +51,7 @@ export default function MarketingPanel() {
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState(null); // { ok, text }
   const [excluded, setExcluded] = useState(() => new Set()); // id degli iscritti da NON inviare
+  const [recipQuery, setRecipQuery] = useState(""); // filtro lista "chi riceve l'email"
 
   const toggleExcluded = (id) =>
     setExcluded((prev) => {
@@ -172,6 +173,16 @@ export default function MarketingPanel() {
   const recipientsList = s.recipientsList || [];
   const numExcluded = recipientsList.filter((u) => excluded.has(u.id)).length;
   const toSend = recipientsList.length - numExcluded;
+
+  // Filtro della lista "chi riceve l'email": cerca per username o email.
+  const rq = recipQuery.trim().toLowerCase();
+  const recipFiltered = rq
+    ? recipientsList.filter(
+        (u) =>
+          String(u.username || "").toLowerCase().includes(rq) ||
+          String(u.email || "").toLowerCase().includes(rq)
+      )
+    : recipientsList;
 
   return (
     <div className="flex flex-col gap-5">
@@ -317,8 +328,26 @@ export default function MarketingPanel() {
             <p className="mt-1 mb-2 px-1 text-faint text-[0.7rem]">
               Togli la spunta a chi non vuoi far ricevere questa email.
             </p>
+            {/* Ricerca per username o email dentro la lista */}
+            <div className="relative mb-2">
+              <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-xs text-muted">
+                🔍
+              </span>
+              <input
+                type="search"
+                value={recipQuery}
+                onChange={(e) => setRecipQuery(e.target.value)}
+                placeholder="Cerca per username o email…"
+                className="w-full rounded-lg border border-line bg-elevated py-2 pr-3 pl-9 font-mono text-xs text-bone outline-none placeholder:text-faint focus:border-volt/60"
+              />
+            </div>
             <div className="flex max-h-60 flex-col gap-1 overflow-y-auto">
-              {recipientsList.map((u) => {
+              {recipFiltered.length === 0 && (
+                <p className="px-2.5 py-3 text-center font-mono text-[0.7rem] text-faint">
+                  Nessun iscritto trovato per «{recipQuery}».
+                </p>
+              )}
+              {recipFiltered.map((u) => {
                 const isExcluded = excluded.has(u.id);
                 return (
                   <label
