@@ -16,6 +16,7 @@ import {
   setConsent,
   adminSetSubscribed,
   unsubscribeByToken,
+  buildCampaignPreview,
 } from "../lib/marketing.js";
 
 const router = Router();
@@ -136,6 +137,19 @@ router.patch("/admin/marketing/subscriber/:id", async (req, res) => {
     if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
     console.error("admin subscriber error:", err);
     return res.status(500).json({ error: "Errore nel salvataggio della preferenza." });
+  }
+});
+
+// --- GET /admin/marketing/preview (anteprima prima dell'invio) ------
+// Compone la vera email (senza inviarla) così l'admin vede esattamente
+// come apparirà, più un riepilogo (quante offerte, quanti destinatari).
+router.get("/admin/marketing/preview", async (_req, res) => {
+  try {
+    const preview = await buildCampaignPreview();
+    return res.json(preview);
+  } catch (err) {
+    console.error("marketing preview error:", err);
+    return res.status(500).json({ error: "Errore nel generare l'anteprima." });
   }
 });
 

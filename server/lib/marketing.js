@@ -312,6 +312,27 @@ export async function sendCampaign({ trigger = "manual", exclude = [] } = {}) {
   return { sent, total: targets.length, offers: products.length, excluded };
 }
 
+// --- Anteprima campagna (NON invia) ----------------------------------
+// Compone l'email esattamente come verrebbe spedita, ma con un nome e un
+// token di disiscrizione "segnaposto". Serve al pannello admin per mostrare
+// il riepilogo + la demo dell'email prima dell'invio manuale.
+export async function buildCampaignPreview() {
+  const products = await getOnSaleProducts();
+  if (products.length === 0) {
+    return { reason: "nessuna-offerta", offers: 0, recipients: 0 };
+  }
+  const { list, available } = await getRecipients();
+  if (!available) {
+    return { reason: "colonna-non-migrata", offers: products.length, recipients: 0 };
+  }
+  const { subject, html, text } = buildCampaignEmail({
+    products,
+    username: "Nome", // nell'email reale qui c'è il nome del cliente
+    unsubToken: "anteprima", // token finto: solo per l'anteprima
+  });
+  return { subject, html, text, offers: products.length, recipients: list.length };
+}
+
 // --- Stato per la dashboard admin ------------------------------------
 export async function getStatus() {
   const config = await getConfig();

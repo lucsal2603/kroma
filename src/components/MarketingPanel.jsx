@@ -50,6 +50,8 @@ export default function MarketingPanel() {
   const [togglingAuto, setTogglingAuto] = useState(false);
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState(null); // { ok, text }
+  const [preview, setPreview] = useState(null); // anteprima email { subject, html, offers, toSend }
+  const [loadingPreview, setLoadingPreview] = useState(false);
   const [savingId, setSavingId] = useState(null); // iscritto in fase di salvataggio
   const [recipQuery, setRecipQuery] = useState(""); // filtro lista "chi riceve l'email"
 
@@ -134,15 +136,33 @@ export default function MarketingPanel() {
     }
   };
 
-  const sendNow = async () => {
+  // 1° passo dell'invio manuale: NON invia ancora. Chiede al backend
+  // l'anteprima della vera email + il riepilogo e apre la finestra di conferma.
+  const requestSend = async () => {
     const list = status?.recipientsList || [];
     const toSend = list.filter((u) => u.subscribed).length;
     if (toSend <= 0) {
       setFeedback({ ok: false, text: "Nessun iscritto attivo: non c'è nessuno a cui inviare." });
       return;
     }
-    const msg = `Inviare adesso l'email con le offerte a ${toSend} ${toSend === 1 ? "cliente" : "clienti"}?`;
-    if (!window.confirm(msg)) return;
+    setLoadingPreview(true);
+    setFeedback(null);
+    try {
+      const p = await api.getMarketingPreview();
+      if (p.reason) {
+        setFeedback({ ok: false, text: REASONS[p.reason] || "Anteprima non disponibile." });
+        return;
+      }
+      setPreview({ ...p, toSend });
+    } catch (err) {
+      setFeedback({ ok: false, text: err.message });
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  // 2° passo: l'admin ha visto l'anteprima e conferma. Ora si invia davvero.
+  const confirmSend = async () => {
     setSending(true);
     setFeedback(null);
     try {
@@ -160,6 +180,7 @@ export default function MarketingPanel() {
       setFeedback({ ok: false, text: err.message });
     } finally {
       setSending(false);
+      setPreview(null);
     }
   };
 
@@ -305,11 +326,11 @@ export default function MarketingPanel() {
             </p>
           </div>
           <button
-            onClick={sendNow}
-            disabled={sending}
+            onClick={requestSend}
+            disabled={sending || loadingPreview}
             className="rounded-full bg-volt px-6 py-3 font-mono text-sm font-bold tracking-wider text-black uppercase transition-transform hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-50"
           >
-            {sending ? "Invio…" : "✉ Invia ora"}
+            {loadingPreview ? "Preparo l'anteprima…" : "✉ Anteprima e invia"}
           </button>
         </div>
 
@@ -456,6 +477,77 @@ export default function MarketingPanel() {
           </div>
         )}
       </div>
+
+      {/* Finestra di anteprima/conferma prima dell'invio manuale.
+          Mostra il riepilogo + la VERA email così com'è (in un iframe isolato). */}
+      {preview && (
+        <div
+          className="fixed inset-0 z-[98] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={() => !sending && setPreview(null)}
+        >
+          <div
+            className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-line bg-elevated"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Intestazione + riepilogo */}
+            <div className="border-b border-line p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="eyebrow text-volt">Anteprima email</p>
+                  <h3 className="mt-1 font-display text-2xl text-bone">Controlla prima di inviare</h3>
+                </div>
+                <button
+                  onClick={() => !sending && setPreview(null)}
+                  aria-label="Chiudi"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line text-muted transition-colors hover:border-volt/50 hover:text-volt disabled:opacity-40"
+                  disabled={sending}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="rounded-full border border-volt/40 bg-volt/10 px-3 py-1.5 font-mono text-[0.7rem] text-volt">
+                  {preview.toSend} {preview.toSend === 1 ? "destinatario" : "destinatari"}
+                </span>
+                <span className="rounded-full border border-line bg-ink px-3 py-1.5 font-mono text-[0.7rem] text-bone">
+                  {preview.offers} {preview.offers === 1 ? "offerta" : "offerte"}
+                </span>
+              </div>
+              <p className="mt-3 text-faint font-mono text-[0.7rem] leading-relaxed">
+                Oggetto: <span className="text-muted">{preview.subject}</span>
+              </p>
+            </div>
+
+            {/* Anteprima reale dell'email in un iframe isolato */}
+            <div className="min-h-0 flex-1 overflow-auto bg-white p-3">
+              <iframe
+                title="Anteprima email"
+                srcDoc={preview.html}
+                sandbox=""
+                className="h-[55vh] w-full rounded-xl border border-line bg-white"
+              />
+            </div>
+
+            {/* Azioni */}
+            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-line p-5">
+              <button
+                onClick={() => setPreview(null)}
+                disabled={sending}
+                className="rounded-full border border-line px-5 py-2.5 font-mono text-sm tracking-wide text-muted transition-colors hover:border-bone hover:text-bone disabled:opacity-40"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={confirmSend}
+                disabled={sending}
+                className="rounded-full bg-volt px-6 py-2.5 font-mono text-sm font-bold tracking-wider text-black uppercase transition-transform hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-50"
+              >
+                {sending ? "Invio…" : "✓ Conferma e invia"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

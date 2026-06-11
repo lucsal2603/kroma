@@ -124,6 +124,7 @@ export const api = {
 
   // --- Admin: campagne email ---
   getMarketing: () => request("/admin/marketing", { auth: true }),
+  getMarketingPreview: () => request("/admin/marketing/preview", { auth: true }),
   updateMarketing: (config) =>
     request("/admin/marketing", { method: "PATCH", auth: true, body: config }),
   sendMarketingNow: (exclude = []) =>
