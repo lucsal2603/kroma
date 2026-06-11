@@ -36,7 +36,25 @@ export default function Footer() {
           </div>
         </div>
 
-        <div data-reveal className="text-faint mt-16 flex flex-wrap justify-between gap-3 font-mono text-[0.65rem] tracking-wider uppercase">
+        {/* Link legali: aprono l'informativa (modale PolicyModal) via evento. */}
+        <div data-reveal className="mt-12 flex flex-wrap gap-x-6 gap-y-2 border-t border-line pt-8 font-mono text-[0.65rem] tracking-wider uppercase">
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent("kroma:open-policy", { detail: "privacy" }))}
+            className="text-muted transition-colors hover:text-volt"
+          >
+            Privacy
+          </button>
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent("kroma:open-policy", { detail: "cookie" }))}
+            className="text-muted transition-colors hover:text-volt"
+          >
+            Cookie Policy
+          </button>
+        </div>
+
+        <div data-reveal className="text-faint mt-8 flex flex-wrap justify-between gap-3 font-mono text-[0.65rem] tracking-wider uppercase">
           <span>© 2026 KROMA — Milano Marittima, IT</span>
           <span>Indossa l'istinto selvaggio</span>
         </div>

@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 
 const KEY = "kroma-cookie-consent";
 
+// Questo sito usa SOLO cookie tecnici essenziali (login, carrello, preferenze):
+// per legge non servirebbe nemmeno il consenso. Mostriamo comunque un avviso
+// informativo chiaro, con un solo pulsante "Ho capito".
 export default function CookieConsent() {
   const [open, setOpen] = useState(false);
-  const [details, setDetails] = useState(false);
 
-  // Mostra il banner solo se l'utente non ha ancora scelto.
+  // Mostra l'avviso solo se l'utente non l'ha ancora chiuso.
   useEffect(() => {
     let saved = null;
     try {
@@ -20,17 +22,17 @@ export default function CookieConsent() {
     }
   }, []);
 
-  const choose = (value) => {
+  const dismiss = () => {
     try {
-      localStorage.setItem(
-        KEY,
-        JSON.stringify({ choice: value, ts: Date.now() })
-      );
+      localStorage.setItem(KEY, JSON.stringify({ seen: true, ts: Date.now() }));
     } catch {
       /* storage non disponibile: chiudiamo comunque */
     }
     setOpen(false);
   };
+
+  const openPolicy = () =>
+    window.dispatchEvent(new CustomEvent("kroma:open-policy", { detail: "cookie" }));
 
   if (!open) return null;
 
@@ -43,57 +45,27 @@ export default function CookieConsent() {
               <span className="anim-sway inline-block">🍪</span> Cookie
             </p>
             <p className="text-sm leading-relaxed text-bone/85">
-              Usiamo cookie tecnici essenziali per far funzionare il sito e, con
-              il tuo consenso, cookie di analisi per capire come navighi.
-              Puoi accettarli tutti o tenere solo quelli essenziali.
+              Usiamo solo cookie tecnici essenziali, necessari per far funzionare il sito
+              (accesso, carrello e preferenze). Non usiamo cookie di profilazione, pubblicità
+              o di terze parti.
             </p>
 
             <button
               type="button"
-              onClick={() => setDetails((d) => !d)}
+              onClick={openPolicy}
               className="mt-3 font-mono text-[0.7rem] tracking-[0.16em] text-muted uppercase underline-offset-4 transition-colors hover:text-bone hover:underline"
             >
-              {details ? "Nascondi dettagli" : "Maggiori dettagli"}
+              Leggi la Cookie Policy
             </button>
-
-            {details && (
-              <dl className="mt-4 flex flex-col gap-3 border-t border-line pt-4 text-xs text-muted">
-                <div>
-                  <dt className="font-mono tracking-wider text-bone/80 uppercase">
-                    Essenziali
-                  </dt>
-                  <dd className="mt-1 leading-relaxed">
-                    Necessari per il carrello, le preferenze e la sicurezza.
-                    Sempre attivi, non richiedono consenso.
-                  </dd>
-                </div>
-                <div>
-                  <dt className="font-mono tracking-wider text-bone/80 uppercase">
-                    Analitici
-                  </dt>
-                  <dd className="mt-1 leading-relaxed">
-                    Statistiche anonime sull'uso del sito per migliorarlo.
-                    Attivati solo se accetti.
-                  </dd>
-                </div>
-              </dl>
-            )}
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+          <div className="flex justify-end">
             <button
               type="button"
-              onClick={() => choose("essential")}
-              className="order-2 rounded-full border border-line px-6 py-3 font-mono text-xs font-bold tracking-[0.16em] text-bone uppercase transition-colors duration-300 hover:border-bone/50 sm:order-1"
+              onClick={dismiss}
+              className="anim-glow rounded-full bg-volt px-8 py-3 font-mono text-xs font-bold tracking-[0.16em] text-black uppercase transition-transform duration-300 hover:-translate-y-0.5"
             >
-              Solo essenziali
-            </button>
-            <button
-              type="button"
-              onClick={() => choose("all")}
-              className="anim-glow order-1 rounded-full bg-volt px-7 py-3 font-mono text-xs font-bold tracking-[0.16em] text-black uppercase transition-transform duration-300 hover:-translate-y-0.5 sm:order-2"
-            >
-              Accetta tutti
+              Ho capito
             </button>
           </div>
         </div>

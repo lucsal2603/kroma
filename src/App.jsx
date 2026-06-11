@@ -14,6 +14,7 @@ import Footer from "./components/Footer";
 import ProductDetail from "./components/ProductDetail";
 import CartDrawer from "./components/CartDrawer";
 import CookieConsent from "./components/CookieConsent";
+import PolicyModal from "./components/PolicyModal";
 import AdminDashboard from "./components/AdminDashboard";
 import WelcomeOffer from "./components/WelcomeOffer";
 
@@ -50,6 +51,7 @@ function Shell() {
       <ProductDetail />
       <CartDrawer />
       <CookieConsent />
+      <PolicyModal />
       <AuthModalHost />
       <WelcomeOffer />
     </div>
