@@ -1,5 +1,5 @@
 import { useReveal } from "../hooks/useReveal";
-import { BRANDS, formatEuro } from "../data/products";
+import { BRANDS, formatEuro, hasSale, effectivePrice, salePercent } from "../data/products";
 import { useCart } from "../store/cart";
 import { useProducts } from "../store/products";
 import HelmetFlip from "./HelmetFlip";
@@ -78,6 +78,11 @@ export default function ProductGrid() {
                   {p.tag}
                 </span>
               )}
+              {hasSale(p) && (
+                <span className="anim-pulse absolute bottom-4 right-4 rounded-full bg-red-500 px-3 py-1.5 font-mono text-[0.62rem] font-bold tracking-[0.14em] text-white uppercase shadow-lg">
+                  −{salePercent(p)}%
+                </span>
+              )}
               {p.bestSeller && (
                 <span className="anim-pulse absolute bottom-4 left-4 flex items-center gap-1.5 rounded-full bg-volt px-3 py-1.5 font-mono text-[0.62rem] font-bold tracking-[0.14em] text-black uppercase shadow-lg">
                   🦈 #1 più acquistato
@@ -93,7 +98,14 @@ export default function ProductGrid() {
               </div>
               <div className="text-right">
                 <div className="text-muted font-mono text-xs">EUR</div>
-                <div className="text-bone text-xl font-semibold">{formatEuro(p.price)}</div>
+                {hasSale(p) ? (
+                  <div className="flex items-baseline justify-end gap-2">
+                    <span className="text-faint font-mono text-sm line-through">{formatEuro(p.price)}</span>
+                    <span className="text-volt text-xl font-bold">{formatEuro(effectivePrice(p))}</span>
+                  </div>
+                ) : (
+                  <div className="text-bone text-xl font-semibold">{formatEuro(p.price)}</div>
+                )}
               </div>
             </div>
             <div className="absolute inset-x-0 bottom-0 h-[3px] origin-left scale-x-0 bg-volt transition-transform duration-500 ease-out group-hover:scale-x-100" />

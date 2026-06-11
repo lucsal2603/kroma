@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, useState, useCallback } from "react";
+import { effectivePrice } from "../data/products";
 
 const CartContext = createContext(null);
 
@@ -12,7 +13,9 @@ export function CartProvider({ children }) {
     setItems((prev) => {
       const found = prev.find((it) => it.id === id);
       if (found) return prev.map((it) => (it.id === id ? { ...it, qty: it.qty + 1 } : it));
-      return [...prev, { id, productId: p.id, code: p.code, brand: p.brand, model: p.model, name: p.name, price: p.price, img: p.img, color: p.color, size, qty: 1 }];
+      // `price` è quello effettivo (scontato se in saldo); `listPrice` è il
+      // prezzo pieno, usato per mostrarlo barrato. Il server ricalcola comunque.
+      return [...prev, { id, productId: p.id, code: p.code, brand: p.brand, model: p.model, name: p.name, price: effectivePrice(p), listPrice: Number(p.price), img: p.img, color: p.color, size, qty: 1 }];
     });
     setProduct(null);
     setCartOpen(true);

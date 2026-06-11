@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "../lib/gsap";
-import { SIZES, formatEuro } from "../data/products";
+import { SIZES, formatEuro, hasSale, effectivePrice, salePercent } from "../data/products";
 import { useCart } from "../store/cart";
 import { useProducts } from "../store/products";
 import HelmetFlip from "./HelmetFlip";
@@ -141,7 +141,17 @@ export default function ProductDetail() {
           <div className="mt-auto flex items-center justify-between gap-4 pt-2">
             <div>
               <div className="text-muted font-mono text-xs">EUR</div>
-              <div className="text-bone text-2xl font-semibold">{formatEuro(v.price)}</div>
+              {hasSale(v) ? (
+                <div className="flex items-baseline gap-2.5">
+                  <span className="text-faint font-mono text-base line-through">{formatEuro(v.price)}</span>
+                  <span className="text-volt text-2xl font-bold">{formatEuro(effectivePrice(v))}</span>
+                  <span className="rounded-full bg-red-500 px-2 py-0.5 font-mono text-[0.6rem] font-bold tracking-wider text-white uppercase">
+                    −{salePercent(v)}%
+                  </span>
+                </div>
+              ) : (
+                <div className="text-bone text-2xl font-semibold">{formatEuro(v.price)}</div>
+              )}
             </div>
             <button
               onClick={() => add(v, size)}

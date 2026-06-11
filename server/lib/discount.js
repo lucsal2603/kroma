@@ -22,6 +22,17 @@ export function round2(n) {
   return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 }
 
+// Prezzo effettivo di vendita di un prodotto: usa il prezzo scontato
+// (sale_price) solo se è un numero valido, > 0 e davvero più basso del prezzo
+// pieno; altrimenti resta il prezzo pieno. Robusta anche se sale_price è
+// null/undefined (colonna non ancora migrata).
+export function effectivePrice(price, salePrice) {
+  const full = Number(price);
+  const sale = Number(salePrice);
+  if (Number.isFinite(sale) && sale > 0 && sale < full) return sale;
+  return full;
+}
+
 // Percentuale di sconto valida per un utente, in base alla riga DB
 // { created_at, welcome_used }. Restituisce 0 se non idoneo:
 //   - buono già usato, oppure

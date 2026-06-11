@@ -476,7 +476,14 @@ export default function CartDrawer() {
                         +
                       </button>
                     </div>
-                    <div className="text-bone font-semibold">{formatEuro(it.price * it.qty)} €</div>
+                    <div className="text-right">
+                      {it.listPrice > it.price && (
+                        <div className="text-faint font-mono text-[0.65rem] line-through">{formatEuro(it.listPrice * it.qty)} €</div>
+                      )}
+                      <div className={(it.listPrice > it.price ? "text-volt" : "text-bone") + " font-semibold"}>
+                        {formatEuro(it.price * it.qty)} €
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

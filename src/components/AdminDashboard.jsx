@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../store/auth";
 import { api } from "../lib/api";
-import { formatEuro } from "../data/products";
+import { formatEuro, hasSale, effectivePrice, salePercent } from "../data/products";
 import { fileToCompressedDataUrl } from "../lib/image";
 import HelmetFlip from "./HelmetFlip";
 import Logo from "./Logo";
@@ -21,7 +21,7 @@ const fmtDate = (iso) =>
 const orderNumber = (id) => String(id).replace(/-/g, "").slice(0, 6).toUpperCase();
 
 // --- Riga prodotto con editor della giacenza + elimina ---------------
-function StockRow({ product, onSaved, onDeleted, onEdit }) {
+function StockRow({ product, onSaved, onDeleted, onEdit, onDiscount }) {
   const [value, setValue] = useState(String(product.stock ?? 0));
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(0);
@@ -69,7 +69,15 @@ function StockRow({ product, onSaved, onDeleted, onEdit }) {
       <div className="min-w-0 flex-1">
         <div className="truncate font-display text-base text-bone sm:text-lg">{product.name}</div>
         <div className="text-faint truncate font-mono text-[0.6rem] tracking-wide uppercase sm:text-[0.65rem]">
-          {meta} · {formatEuro(product.price)} €
+          {meta} ·{" "}
+          {hasSale(product) ? (
+            <>
+              <span className="line-through">{formatEuro(product.price)} €</span>{" "}
+              <span className="text-volt">{formatEuro(effectivePrice(product))} € (−{salePercent(product)}%)</span>
+            </>
+          ) : (
+            <>{formatEuro(product.price)} €</>
+          )}
         </div>
       </div>
       <div className="flex w-full items-center gap-2 sm:w-auto">
@@ -87,6 +95,19 @@ function StockRow({ product, onSaved, onDeleted, onEdit }) {
           className="shrink-0 rounded-xl border border-volt/50 bg-volt/10 px-4 py-2 font-mono text-xs tracking-wider text-volt uppercase transition-colors hover:border-volt disabled:cursor-not-allowed disabled:opacity-40"
         >
           {saving ? "…" : "Salva"}
+        </button>
+        <button
+          onClick={() => onDiscount(product)}
+          aria-label="Imposta sconto"
+          title="Imposta sconto"
+          className={
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border font-mono text-sm transition-colors " +
+            (hasSale(product)
+              ? "border-volt/60 bg-volt/10 text-volt"
+              : "border-line text-muted hover:border-volt/60 hover:text-bone")
+          }
+        >
+          %
         </button>
         <button
           onClick={() => onEdit(product)}
@@ -111,6 +132,129 @@ function StockRow({ product, onSaved, onDeleted, onEdit }) {
       ) : savedAt ? (
         <span className="font-mono text-[0.6rem] text-volt">✓</span>
       ) : null}
+    </div>
+  );
+}
+
+// --- Finestrella "Sconto prodotto" (prezzo scontato) -----------------
+function DiscountForm({ product, onClose, onSaved }) {
+  const original = Number(product.price);
+  const [value, setValue] = useState(product.salePrice != null ? String(product.salePrice) : "");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const sale = Number(value);
+  const valid = Number.isFinite(sale) && sale > 0 && sale < original;
+  const pct = valid ? Math.round((1 - sale / original) * 100) : 0;
+  const alreadyOnSale = product.salePrice != null && Number(product.salePrice) < original;
+
+  const save = async () => {
+    if (!valid) {
+      setErr(`Scrivi un prezzo scontato tra 1 € e ${formatEuro(original)} € (sotto al prezzo pieno).`);
+      return;
+    }
+    setBusy(true);
+    setErr("");
+    try {
+      const { product: updated } = await api.updateProduct(product.id, { salePrice: sale });
+      onSaved(updated);
+      onClose();
+    } catch (e) {
+      setErr(e.message);
+      setBusy(false);
+    }
+  };
+
+  const removeSale = async () => {
+    setBusy(true);
+    setErr("");
+    try {
+      const { product: updated } = await api.updateProduct(product.id, { salePrice: null });
+      onSaved(updated);
+      onClose();
+    } catch (e) {
+      setErr(e.message);
+      setBusy(false);
+    }
+  };
+
+  const onKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      save();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-sm rounded-3xl border border-line bg-elevated p-6 sm:p-8">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Chiudi"
+          className="absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full border border-line text-bone transition-colors hover:border-bone/40"
+        >
+          ✕
+        </button>
+        <h3 className="font-display text-2xl text-bone">Sconto prodotto</h3>
+        <p className="text-muted mt-1 text-sm">
+          {product.name} · prezzo pieno {formatEuro(original)} €
+        </p>
+
+        <label className="eyebrow mt-5 mb-1.5 block text-[0.6rem]">Prezzo scontato (EUR)</label>
+        <input
+          autoFocus
+          type="number"
+          min="0"
+          step="1"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder={`Es. ${Math.max(1, Math.round(original * 0.8))}`}
+          className="w-full rounded-xl border border-line bg-ink px-4 py-3 text-bone outline-none focus:border-volt/60"
+        />
+
+        {/* Anteprima di come apparirà il prezzo nel negozio */}
+        <div className="mt-4 rounded-2xl border border-line bg-ink px-4 py-3 text-center">
+          <p className="eyebrow mb-2 text-[0.55rem]">Nel negozio apparirà così</p>
+          {valid ? (
+            <div className="flex items-baseline justify-center gap-2.5">
+              <span className="text-faint font-mono text-sm line-through">{formatEuro(original)} €</span>
+              <span className="text-volt text-2xl font-bold">{formatEuro(sale)} €</span>
+              <span className="rounded-full bg-red-500 px-2 py-0.5 font-mono text-[0.6rem] font-bold tracking-wider text-white uppercase">
+                −{pct}%
+              </span>
+            </div>
+          ) : (
+            <span className="text-faint font-mono text-xs">Inserisci un prezzo più basso di {formatEuro(original)} €</span>
+          )}
+        </div>
+
+        {err && (
+          <p className="mt-3 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2 text-center font-mono text-[0.7rem] text-red-300">
+            {err}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={save}
+          disabled={busy || !valid}
+          className="mt-5 w-full rounded-full bg-volt px-6 py-3.5 font-mono text-sm font-bold tracking-wider text-black uppercase transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {busy ? "Salvo…" : "✓ Applica sconto"}
+        </button>
+        {alreadyOnSale && (
+          <button
+            type="button"
+            onClick={removeSale}
+            disabled={busy}
+            className="mt-2 w-full rounded-full border border-line px-6 py-3 font-mono text-xs tracking-wider text-muted uppercase transition-colors hover:border-red-500/50 hover:text-red-300 disabled:opacity-40"
+          >
+            Togli lo sconto (torna a {formatEuro(original)} €)
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -609,6 +753,7 @@ export default function AdminDashboard() {
   const [error, setError] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
+  const [discountProduct, setDiscountProduct] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -733,6 +878,7 @@ export default function AdminDashboard() {
                 onSaved={onStockSaved}
                 onDeleted={onProductDeleted}
                 onEdit={setEditProduct}
+                onDiscount={setDiscountProduct}
               />
             ))}
           </div>
@@ -810,6 +956,14 @@ export default function AdminDashboard() {
           brands={Array.from(
             new Set(["ARAI", "Shoei", "AGV", "HJC", ...products.map((p) => p.brand).filter(Boolean)])
           )}
+        />
+      )}
+
+      {discountProduct && (
+        <DiscountForm
+          product={discountProduct}
+          onClose={() => setDiscountProduct(null)}
+          onSaved={onProductUpdated}
         />
       )}
     </div>

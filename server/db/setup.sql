@@ -35,7 +35,8 @@ create table if not exists products (
   brand         text        not null default 'ARAI',
   model         text        not null default 'SZ-R EVO',
   color         text        not null,
-  price         numeric(10,2) not null,                -- EUR
+  price         numeric(10,2) not null,                -- EUR (prezzo pieno)
+  sale_price    numeric(10,2),                          -- EUR scontato (NULL = nessuno sconto)
   stock         integer     not null default 0,         -- giacenza disponibile
   img_url       text        not null,                  -- foto fronte
   img_back_url  text,                                  -- foto retro

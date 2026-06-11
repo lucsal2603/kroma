@@ -11,7 +11,9 @@ import { requireAuth, requireAdmin } from "../lib/auth.js";
 function toProduct(r) {
   return {
     id: r.id, code: r.code, name: r.name, brand: r.brand, model: r.model,
-    color: r.color, price: Number(r.price), stock: r.stock ?? 0,
+    color: r.color, price: Number(r.price),
+    salePrice: r.sale_price == null ? null : Number(r.sale_price),
+    stock: r.stock ?? 0,
     img: r.img_url, imgBack: r.img_back_url, gallery: r.gallery || [],
     swatch: r.swatch, tag: r.tag,
     bestSeller: r.best_seller, blurb: r.blurb, specs: r.specs || [],
@@ -213,15 +215,32 @@ router.patch("/admin/products/:id", async (req, res) => {
       if (imgBack && !isValidImage(imgBack)) return res.status(400).json({ error: "La seconda foto non è valida." });
       add("img_back_url", imgBack || null);
     }
-    // Galleria completa (più foto). Aggiunta PER ULTIMA così, se la colonna
+    // Galleria completa (più foto). Aggiunta in coda così, se la colonna
     // gallery non è ancora migrata, basta togliere l'ultimo set e riprovare.
-    let galleryAdded = false;
     if ("images" in b) {
       const images = normalizeImages(b);
       add("img_url", images[0]);
       add("img_back_url", images[1] || null);
       add("gallery", JSON.stringify(images));
-      galleryAdded = true;
+    }
+
+    // Sconto sul prodotto (prezzo scontato). Aggiunto PER ULTIMO: se la colonna
+    // sale_price non è ancora migrata, il retry qui sotto lo toglie e riprova.
+    if ("salePrice" in b) {
+      const raw = b.salePrice;
+      if (raw === null || raw === "" || raw === undefined) {
+        add("sale_price", null); // togli lo sconto (torna al prezzo pieno)
+      } else {
+        const sp = Number(raw);
+        if (!Number.isFinite(sp) || sp <= 0)
+          return res.status(400).json({ error: "Il prezzo scontato deve essere un numero maggiore di 0." });
+        if ("price" in b) {
+          const full = Number(b.price);
+          if (Number.isFinite(full) && sp >= full)
+            return res.status(400).json({ error: "Il prezzo scontato deve essere minore del prezzo pieno." });
+        }
+        add("sale_price", sp);
+      }
     }
 
     if (!sets.length) return res.status(400).json({ error: "Niente da aggiornare." });
@@ -233,17 +252,20 @@ router.patch("/admin/products/:id", async (req, res) => {
         params
       );
     };
+    // Colonne "in coda" che potrebbero non essere ancora migrate: se l'UPDATE
+    // fallisce con 42703 (colonna assente) le togliamo dalla fine e riproviamo.
+    const OPTIONAL_TAIL = new Set(["gallery", "sale_price"]);
     let result;
-    try {
-      result = await exec();
-    } catch (e) {
-      if (e.code === "42703" && galleryAdded) {
-        sets.pop(); // rimuove "gallery = $n"
-        vals.pop();
-        galleryAdded = false;
+    while (true) {
+      try {
         result = await exec();
-      } else {
-        throw e;
+        break;
+      } catch (e) {
+        const lastCol = sets[sets.length - 1]?.split(" = ")[0];
+        if (e.code !== "42703" || !lastCol || !OPTIONAL_TAIL.has(lastCol)) throw e;
+        sets.pop();
+        vals.pop();
+        if (!sets.length) throw e;
       }
     }
     const { rows } = result;

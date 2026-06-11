@@ -4,7 +4,7 @@
 import { pool } from "../db/index.js";
 import { sendOrderConfirmation } from "./orderEmail.js";
 import { sendTelegram } from "./telegram.js";
-import { welcomeDiscountFor, round2 } from "./discount.js";
+import { welcomeDiscountFor, round2, effectivePrice } from "./discount.js";
 
 const euro = (n) => "€ " + Number(n).toFixed(2).replace(".", ",");
 
@@ -58,25 +58,35 @@ export function normalizeShipping(raw = {}) {
 // Legge il carrello dell'utente e calcola gli articoli + il totale.
 // Non scrive nulla: serve per mostrare l'importo (es. a PayPal) prima di pagare.
 export async function readCart(userId) {
-  const { rows } = await pool.query(
+  // Include sale_price (prezzo scontato del prodotto). Se la colonna non è
+  // ancora stata migrata (42703), ripiega sulla query senza sconto prodotto.
+  const build = (saleCol) =>
     `select ci.product_id, ci.size, ci.quantity,
-            p.name, p.color, p.price
+            p.name, p.color, p.price${saleCol}
        from cart_items ci
        join products p on p.id = ci.product_id
       where ci.user_id = $1
-      order by ci.created_at`,
-    [userId]
-  );
-  const items = rows.map((r) => ({
-    productId: r.product_id,
-    name: r.name,
-    color: r.color,
-    size: r.size,
-    quantity: r.quantity,
-    price: Number(r.price),
-    subtotal: Number(r.price) * r.quantity,
-  }));
-  const total = items.reduce((s, i) => s + i.subtotal, 0);
+      order by ci.created_at`;
+  let rows;
+  try {
+    ({ rows } = await pool.query(build(", p.sale_price"), [userId]));
+  } catch (e) {
+    if (e.code !== "42703") throw e;
+    ({ rows } = await pool.query(build(""), [userId]));
+  }
+  const items = rows.map((r) => {
+    const price = round2(effectivePrice(r.price, r.sale_price));
+    return {
+      productId: r.product_id,
+      name: r.name,
+      color: r.color,
+      size: r.size,
+      quantity: r.quantity,
+      price,
+      subtotal: round2(price * r.quantity),
+    };
+  });
+  const total = round2(items.reduce((s, i) => s + i.subtotal, 0));
   return { items, total };
 }
 

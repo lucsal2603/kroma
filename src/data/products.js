@@ -42,3 +42,18 @@ export const SIZES = ["XS", "S", "M", "L", "XL"];
 
 export const formatEuro = (n) =>
   new Intl.NumberFormat("it-IT", { minimumFractionDigits: 0 }).format(n);
+
+// Prezzo effettivo: usa lo scontato (salePrice) solo se valido e più basso del
+// prezzo pieno. Speculare alla logica del server (effectivePrice in discount.js).
+export const effectivePrice = (p) => {
+  const full = Number(p?.price);
+  const sale = Number(p?.salePrice);
+  return Number.isFinite(sale) && sale > 0 && sale < full ? sale : full;
+};
+
+// true se il prodotto ha uno sconto attivo (prezzo scontato < prezzo pieno).
+export const hasSale = (p) => effectivePrice(p) < Number(p?.price);
+
+// Percentuale di sconto arrotondata (es. 25 per "−25%"). 0 se nessuno sconto.
+export const salePercent = (p) =>
+  hasSale(p) ? Math.round((1 - effectivePrice(p) / Number(p.price)) * 100) : 0;
