@@ -50,6 +50,14 @@ export default function MarketingPanel() {
   const [togglingAuto, setTogglingAuto] = useState(false);
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState(null); // { ok, text }
+  const [excluded, setExcluded] = useState(() => new Set()); // id degli iscritti da NON inviare
+
+  const toggleExcluded = (id) =>
+    setExcluded((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   const load = async () => {
     setLoading(true);
@@ -108,18 +116,31 @@ export default function MarketingPanel() {
   };
 
   const sendNow = async () => {
-    if (!window.confirm("Inviare adesso l'email con le offerte a tutti i clienti che hanno dato il consenso?"))
+    const list = status?.recipientsList || [];
+    const excludeIds = list.filter((u) => excluded.has(u.id)).map((u) => u.id);
+    const toSend = list.length - excludeIds.length;
+    if (toSend <= 0) {
+      setFeedback({ ok: false, text: "Hai escluso tutti gli iscritti: non c'è nessuno a cui inviare." });
       return;
+    }
+    const msg =
+      excludeIds.length > 0
+        ? `Inviare l'email con le offerte a ${toSend} ${toSend === 1 ? "cliente" : "clienti"}? (${excludeIds.length} ${excludeIds.length === 1 ? "escluso" : "esclusi"})`
+        : `Inviare adesso l'email con le offerte a tutti i ${toSend} clienti che hanno dato il consenso?`;
+    if (!window.confirm(msg)) return;
     setSending(true);
     setFeedback(null);
     try {
-      const res = await api.sendMarketingNow();
+      const res = await api.sendMarketingNow(excludeIds);
       if (res.reason) {
         setFeedback({ ok: false, text: REASONS[res.reason] || "Invio non riuscito." });
       } else {
         setFeedback({
           ok: true,
-          text: `Email inviata a ${res.sent} clienti su ${res.total} (${res.offers} offerte).`,
+          text:
+            `Email inviata a ${res.sent} clienti su ${res.total} (${res.offers} offerte)` +
+            (res.excluded ? ` · ${res.excluded} esclusi` : "") +
+            ".",
         });
         await load();
       }
@@ -148,6 +169,9 @@ export default function MarketingPanel() {
   }
 
   const s = status;
+  const recipientsList = s.recipientsList || [];
+  const numExcluded = recipientsList.filter((u) => excluded.has(u.id)).length;
+  const toSend = recipientsList.length - numExcluded;
 
   return (
     <div className="flex flex-col gap-5">
@@ -252,8 +276,17 @@ export default function MarketingPanel() {
           <div>
             <h3 className="font-display text-xl text-bone">Invia ora</h3>
             <p className="text-muted mt-1 text-sm">
-              Manda subito l'email con le offerte del momento a {s.recipients}{" "}
-              {s.recipients === 1 ? "cliente" : "clienti"}.
+              L'email partirà a{" "}
+              <span className="font-bold text-volt">
+                {toSend} {toSend === 1 ? "cliente" : "clienti"}
+              </span>
+              {numExcluded > 0 && (
+                <span className="text-faint">
+                  {" "}
+                  ({numExcluded} {numExcluded === 1 ? "escluso" : "esclusi"})
+                </span>
+              )}
+              .
             </p>
           </div>
           <button
@@ -264,6 +297,58 @@ export default function MarketingPanel() {
             {sending ? "Invio…" : "✉ Invia ora"}
           </button>
         </div>
+
+        {/* Chi riceve l'email: togli la spunta per escludere qualcuno */}
+        {recipientsList.length > 0 && (
+          <div className="mt-4 rounded-xl border border-line bg-ink p-3">
+            <div className="flex items-center justify-between gap-2 px-1">
+              <p className="font-mono text-[0.6rem] tracking-wider text-muted uppercase">
+                Chi riceve l'email
+              </p>
+              {numExcluded > 0 && (
+                <button
+                  onClick={() => setExcluded(new Set())}
+                  className="font-mono text-[0.6rem] tracking-wider text-volt uppercase hover:underline"
+                >
+                  Reimposta tutti
+                </button>
+              )}
+            </div>
+            <p className="mt-1 mb-2 px-1 text-faint text-[0.7rem]">
+              Togli la spunta a chi non vuoi far ricevere questa email.
+            </p>
+            <div className="flex max-h-60 flex-col gap-1 overflow-y-auto">
+              {recipientsList.map((u) => {
+                const isExcluded = excluded.has(u.id);
+                return (
+                  <label
+                    key={u.id}
+                    className={
+                      "flex cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2 transition-colors " +
+                      (isExcluded ? "opacity-45 hover:bg-elevated" : "hover:bg-elevated")
+                    }
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!isExcluded}
+                      onChange={() => toggleExcluded(u.id)}
+                      className="h-4 w-4 shrink-0 accent-volt"
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm text-bone">
+                      {u.username || "—"}
+                      <span className="text-muted"> · {u.email}</span>
+                    </span>
+                    {isExcluded && (
+                      <span className="shrink-0 font-mono text-[0.55rem] tracking-wider text-faint uppercase">
+                        escluso
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {feedback && (
           <p

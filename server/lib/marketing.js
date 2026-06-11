@@ -17,6 +17,18 @@ const MAIL_BRAND = "KROMA";
 const euro = (n) => "€ " + Number(n).toFixed(2).replace(".", ",");
 const pct = (full, sale) => Math.round((1 - sale / full) * 100);
 
+// Oscura l'email per la lista nel pannello admin (es. "lu***@gm***.com").
+function maskEmail(email) {
+  const [user, domain] = String(email || "").split("@");
+  if (!user || !domain) return "—";
+  const mu = user.length <= 2 ? user[0] + "*" : user.slice(0, 2) + "***";
+  const dot = domain.lastIndexOf(".");
+  const tld = dot >= 0 ? domain.slice(dot) : "";
+  const dname = dot >= 0 ? domain.slice(0, dot) : domain;
+  const md = dname.length <= 2 ? dname[0] + "*" : dname.slice(0, 2) + "***";
+  return `${mu}@${md}${tld}`;
+}
+
 // --- Impostazioni campagna (riga singola in marketing_config) --------
 // Difensiva: se la tabella non è ancora migrata, restituisce i default.
 export async function getConfig() {
@@ -175,7 +187,7 @@ function buildCampaignEmail({ products, username, unsubToken }) {
 // --- Invio della campagna --------------------------------------------
 // Restituisce { sent, total, offers, reason? }. Non lancia per i fallimenti
 // di singole email (li conta e prosegue).
-export async function sendCampaign({ trigger = "manual" } = {}) {
+export async function sendCampaign({ trigger = "manual", exclude = [] } = {}) {
   if (!smtpConfigured) {
     return { sent: 0, total: 0, offers: 0, reason: "smtp-non-configurato" };
   }
@@ -193,9 +205,17 @@ export async function sendCampaign({ trigger = "manual" } = {}) {
     return { sent: 0, total: 0, offers: products.length, reason: "nessun-iscritto" };
   }
 
+  // Escludiamo gli iscritti che l'admin ha deselezionato.
+  const excludeSet = new Set((exclude || []).map(String));
+  const targets = list.filter((u) => !excludeSet.has(String(u.id)));
+  const excluded = list.length - targets.length;
+  if (targets.length === 0) {
+    return { sent: 0, total: 0, offers: products.length, excluded, reason: "nessun-iscritto" };
+  }
+
   let sent = 0;
   let subjectUsed = "";
-  for (const u of list) {
+  for (const u of targets) {
     try {
       const token = await ensureUnsubToken(u.id, u.unsubscribe_token);
       const { subject, html, text } = buildCampaignEmail({
@@ -224,7 +244,7 @@ export async function sendCampaign({ trigger = "manual" } = {}) {
     console.error("campaign log error:", err.message);
   }
 
-  return { sent, total: list.length, offers: products.length };
+  return { sent, total: targets.length, offers: products.length, excluded };
 }
 
 // --- Stato per la dashboard admin ------------------------------------
@@ -265,6 +285,11 @@ export async function getStatus() {
     lastSentAt: config.lastSentAt,
     nextSendAt,
     recipients: list.length,
+    recipientsList: list.map((u) => ({
+      id: u.id,
+      username: u.username,
+      email: maskEmail(u.email),
+    })),
     offers: products.length,
     products: products.map((p) => ({
       name: p.name,

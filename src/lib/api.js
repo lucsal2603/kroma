@@ -103,7 +103,8 @@ export const api = {
   getMarketing: () => request("/admin/marketing", { auth: true }),
   updateMarketing: (config) =>
     request("/admin/marketing", { method: "PATCH", auth: true, body: config }),
-  sendMarketingNow: () => request("/admin/marketing/send", { method: "POST", auth: true }),
+  sendMarketingNow: (exclude = []) =>
+    request("/admin/marketing/send", { method: "POST", auth: true, body: { exclude } }),
 };
 
 export { API_BASE };

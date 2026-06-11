@@ -121,12 +121,14 @@ router.patch("/admin/marketing", async (req, res) => {
 });
 
 // --- POST /admin/marketing/send (invia ora) -------------------------
-router.post("/admin/marketing/send", async (_req, res) => {
+router.post("/admin/marketing/send", async (req, res) => {
   try {
-    const result = await sendCampaign({ trigger: "manual" });
+    const exclude = Array.isArray(req.body?.exclude) ? req.body.exclude : [];
+    const result = await sendCampaign({ trigger: "manual", exclude });
     const detail = result.reason
       ? `non inviata (${result.reason})`
-      : `inviata a ${result.sent}/${result.total} · ${result.offers} offerte`;
+      : `inviata a ${result.sent}/${result.total} · ${result.offers} offerte` +
+        (result.excluded ? ` · ${result.excluded} esclusi` : "");
     await logActivity({
       userId: req.user.id,
       username: req.user.username,
