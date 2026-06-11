@@ -6,6 +6,7 @@ import { fileToCompressedDataUrl } from "../lib/image";
 import HelmetFlip from "./HelmetFlip";
 import MarketingPanel from "./MarketingPanel";
 import ActivityLog from "./ActivityLog";
+import UsersList from "./UsersList";
 import Logo from "./Logo";
 
 // Etichette leggibili per lo stato dell'ordine.
@@ -839,6 +840,7 @@ export default function AdminDashboard() {
             ["orders", "Ordini ricevuti"],
             ["stock", "Prodotti & giacenza"],
             ["marketing", "Campagne email"],
+            ["users", "Iscritti"],
             ["activity", "Registro attività"],
           ].map(([key, label]) => (
             <button
@@ -875,6 +877,8 @@ export default function AdminDashboard() {
           </p>
         ) : tab === "marketing" ? (
           <MarketingPanel />
+        ) : tab === "users" ? (
+          <UsersList />
         ) : tab === "activity" ? (
           <ActivityLog />
         ) : tab === "stock" ? (

@@ -21,6 +21,26 @@ function toProduct(r) {
   };
 }
 
+// Maschera l'email per privacy: tiene poche lettere e nasconde il resto.
+// Es. "lucasalvemini03@gmail.com" -> "lu***@gm***.com"
+function maskEmail(email) {
+  const s = String(email || "");
+  const at = s.indexOf("@");
+  if (at < 1) return "***";
+  const local = s.slice(0, at);
+  const domain = s.slice(at + 1);
+  const shownLocal = local.length <= 2 ? local[0] + "*" : local.slice(0, 2) + "***";
+  const dot = domain.lastIndexOf(".");
+  let shownDomain = domain;
+  if (dot > 1) {
+    const namePart = domain.slice(0, dot);
+    const ext = domain.slice(dot); // include il punto, es. ".com"
+    const shownName = namePart.length <= 2 ? namePart[0] + "*" : namePart.slice(0, 2) + "***";
+    shownDomain = shownName + ext;
+  }
+  return `${shownLocal}@${shownDomain}`;
+}
+
 // Accetta data URL di immagini (foto caricata dall'admin) oppure un URL http.
 const isValidImage = (s) =>
   typeof s === "string" && /^(data:image\/|https?:\/\/)/.test(s.trim());
@@ -303,6 +323,36 @@ router.patch("/admin/products/:id", async (req, res) => {
     if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
     console.error("admin update product error:", err);
     return res.status(500).json({ error: "Errore nell'aggiornamento del prodotto." });
+  }
+});
+
+// --- GET /admin/users -----------------------------------------------
+// Elenco degli iscritti: solo nome ed email MASCHERATA (privacy).
+router.get("/admin/users", async (_req, res) => {
+  try {
+    // marketing_consent può non essere migrato: ripiego senza quella colonna.
+    const build = (consentCol) =>
+      `select username, email, is_admin, created_at${consentCol}
+         from users order by created_at desc`;
+    let rows;
+    try {
+      ({ rows } = await query(build(", marketing_consent")));
+    } catch (e) {
+      if (e.code !== "42703") throw e;
+      ({ rows } = await query(build("")));
+    }
+    return res.json({
+      users: rows.map((u) => ({
+        username: u.username,
+        email: maskEmail(u.email),
+        isAdmin: Boolean(u.is_admin),
+        subscribed: u.marketing_consent === undefined ? null : Boolean(u.marketing_consent),
+        createdAt: u.created_at,
+      })),
+    });
+  } catch (err) {
+    console.error("admin users error:", err);
+    return res.status(500).json({ error: "Errore nel recupero degli iscritti." });
   }
 });
 

@@ -89,7 +89,8 @@ export const api = {
   deleteProduct: (productId) =>
     request(`/admin/products/${productId}`, { method: "DELETE", auth: true }),
 
-  // --- Admin: registro attività ---
+  // --- Admin: iscritti / registro attività ---
+  getUsers: () => request("/admin/users", { auth: true }),
   getActivity: () => request("/admin/activity", { auth: true }),
 
   // --- Admin: campagne email ---
