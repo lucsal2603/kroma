@@ -7,6 +7,7 @@
 //   POST   /admin/marketing/send   -> invia ora (admin)
 import { Router } from "express";
 import { requireAuth, requireAdmin } from "../lib/auth.js";
+import { logActivity } from "../lib/activity.js";
 import {
   getStatus,
   updateConfig,
@@ -101,6 +102,16 @@ router.patch("/admin/marketing", async (req, res) => {
       intervalDays: req.body?.intervalDays,
       autoEnabled: req.body?.autoEnabled,
     });
+    const parts = [];
+    if (req.body?.intervalDays !== undefined) parts.push(`ogni ${config.intervalDays} giorni`);
+    if (req.body?.autoEnabled !== undefined)
+      parts.push(config.autoEnabled ? "automatico ON" : "automatico OFF");
+    await logActivity({
+      userId: req.user.id,
+      username: req.user.username,
+      action: "marketing.config",
+      detail: parts.join(" · ") || null,
+    });
     return res.json({ config });
   } catch (err) {
     if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
@@ -113,6 +124,15 @@ router.patch("/admin/marketing", async (req, res) => {
 router.post("/admin/marketing/send", async (_req, res) => {
   try {
     const result = await sendCampaign({ trigger: "manual" });
+    const detail = result.reason
+      ? `non inviata (${result.reason})`
+      : `inviata a ${result.sent}/${result.total} · ${result.offers} offerte`;
+    await logActivity({
+      userId: req.user.id,
+      username: req.user.username,
+      action: "marketing.send",
+      detail,
+    });
     return res.json(result);
   } catch (err) {
     console.error("marketing send error:", err);

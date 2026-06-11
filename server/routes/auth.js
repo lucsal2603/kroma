@@ -7,6 +7,7 @@ import crypto from "node:crypto";
 import { query } from "../db/index.js";
 import { hashPassword, verifyPassword, signToken, requireAuth } from "../lib/auth.js";
 import { sendMail } from "../lib/mailer.js";
+import { logActivity } from "../lib/activity.js";
 
 const router = Router();
 
@@ -116,6 +117,16 @@ router.post("/login", async (req, res) => {
 
     // Non esporre l'hash della password al client.
     const { password_hash, ...publicUser } = user;
+
+    // Registra solo gli accessi degli admin nel registro attività.
+    if (publicUser.is_admin) {
+      await logActivity({
+        userId: publicUser.id,
+        username: publicUser.username,
+        action: "login",
+      });
+    }
+
     return res.json({ user: publicUser, token });
   } catch (err) {
     console.error("login error:", err);

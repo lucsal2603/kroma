@@ -6,6 +6,7 @@
 import { Router } from "express";
 import { query } from "../db/index.js";
 import { requireAuth, requireAdmin } from "../lib/auth.js";
+import { logActivity, getActivity } from "../lib/activity.js";
 
 // Forma "pulita" del prodotto per il frontend (uguale a routes/products.js).
 function toProduct(r) {
@@ -144,6 +145,12 @@ router.post("/admin/products", async (req, res) => {
       }
     }
     if (!row) return res.status(500).json({ error: "Impossibile generare il prodotto. Riprova." });
+    await logActivity({
+      userId: req.user.id,
+      username: req.user.username,
+      action: "product.create",
+      detail: row.name,
+    });
     return res.status(201).json({ product: toProduct(row) });
   } catch (err) {
     if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
@@ -156,8 +163,14 @@ router.post("/admin/products", async (req, res) => {
 router.delete("/admin/products/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { rows } = await query(`delete from products where id = $1 returning id`, [id]);
+    const { rows } = await query(`delete from products where id = $1 returning id, name`, [id]);
     if (!rows[0]) return res.status(404).json({ error: "Prodotto non trovato." });
+    await logActivity({
+      userId: req.user.id,
+      username: req.user.username,
+      action: "product.delete",
+      detail: rows[0].name,
+    });
     return res.json({ deleted: rows[0].id });
   } catch (err) {
     // 23503 = foreign key: il prodotto è già presente in qualche ordine.
@@ -270,11 +283,38 @@ router.patch("/admin/products/:id", async (req, res) => {
     }
     const { rows } = result;
     if (!rows[0]) return res.status(404).json({ error: "Prodotto non trovato." });
+
+    // Registro attività: capiamo dal body che tipo di modifica è stata fatta.
+    const name = rows[0].name;
+    let action = "product.update";
+    let detail = name;
+    if ("salePrice" in b) {
+      const cleared = b.salePrice === null || b.salePrice === "" || b.salePrice === undefined;
+      action = cleared ? "discount.remove" : "discount.set";
+      detail = cleared ? name : `${name} → € ${Number(b.salePrice).toFixed(2)}`;
+    } else if ("stock" in b && Object.keys(b).length === 1) {
+      action = "stock.update";
+      detail = `${name} (giacenza: ${Number(b.stock)})`;
+    }
+    await logActivity({ userId: req.user.id, username: req.user.username, action, detail });
+
     return res.json({ product: toProduct(rows[0]) });
   } catch (err) {
     if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
     console.error("admin update product error:", err);
     return res.status(500).json({ error: "Errore nell'aggiornamento del prodotto." });
+  }
+});
+
+// --- GET /admin/activity --------------------------------------------
+// Registro attività admin: chi ha fatto cosa e quando.
+router.get("/admin/activity", async (_req, res) => {
+  try {
+    const logs = await getActivity(100);
+    return res.json({ logs });
+  } catch (err) {
+    console.error("admin activity error:", err);
+    return res.status(500).json({ error: "Errore nel recupero del registro attività." });
   }
 });
 
