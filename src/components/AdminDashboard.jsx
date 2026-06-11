@@ -64,26 +64,27 @@ function StockRow({ product, onSaved, onDeleted, onEdit }) {
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-line bg-ink p-4">
-      <img src={product.img} alt={product.name} className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-ink p-3 sm:gap-4 sm:p-4">
+      <img src={product.img} alt={product.name} className="h-12 w-12 shrink-0 rounded-xl object-cover sm:h-14 sm:w-14" />
       <div className="min-w-0 flex-1">
-        <div className="truncate font-display text-lg text-bone">{product.name}</div>
-        <div className="text-faint truncate font-mono text-[0.65rem] tracking-wide uppercase">
+        <div className="truncate font-display text-base text-bone sm:text-lg">{product.name}</div>
+        <div className="text-faint truncate font-mono text-[0.6rem] tracking-wide uppercase sm:text-[0.65rem]">
           {meta} · {formatEuro(product.price)} €
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex w-full items-center gap-2 sm:w-auto">
         <input
           type="number"
           min="0"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          className="w-20 rounded-xl border border-line bg-elevated px-3 py-2 text-center font-mono text-bone outline-none focus:border-volt/60"
+          aria-label="Giacenza"
+          className="min-w-0 flex-1 rounded-xl border border-line bg-elevated px-3 py-2 text-center font-mono text-bone outline-none focus:border-volt/60 sm:w-20 sm:flex-none"
         />
         <button
           onClick={save}
           disabled={saving || !dirty}
-          className="rounded-xl border border-volt/50 bg-volt/10 px-4 py-2 font-mono text-xs tracking-wider text-volt uppercase transition-colors hover:border-volt disabled:cursor-not-allowed disabled:opacity-40"
+          className="shrink-0 rounded-xl border border-volt/50 bg-volt/10 px-4 py-2 font-mono text-xs tracking-wider text-volt uppercase transition-colors hover:border-volt disabled:cursor-not-allowed disabled:opacity-40"
         >
           {saving ? "…" : "Salva"}
         </button>
@@ -91,7 +92,7 @@ function StockRow({ product, onSaved, onDeleted, onEdit }) {
           onClick={() => onEdit(product)}
           aria-label="Modifica prodotto"
           title="Modifica prodotto"
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-line text-muted transition-colors hover:border-volt/60 hover:text-bone"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line text-muted transition-colors hover:border-volt/60 hover:text-bone"
         >
           ✎
         </button>
@@ -100,7 +101,7 @@ function StockRow({ product, onSaved, onDeleted, onEdit }) {
           disabled={deleting}
           aria-label="Elimina prodotto"
           title="Elimina prodotto"
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-line text-muted transition-colors hover:border-red-500/50 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line text-muted transition-colors hover:border-red-500/50 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
         >
           {deleting ? "…" : "🗑"}
         </button>
@@ -653,7 +654,7 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-ink text-bone">
       <header className="sticky top-0 z-10 border-b border-line bg-ink/85 backdrop-blur-md">
-        <div className="mx-auto flex max-w-[1100px] items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-[1100px] items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
             <Logo markClass="h-7 w-7" textClass="text-xl" />
             <span className="rounded-full border border-volt/50 bg-volt/10 px-3 py-1 font-mono text-[0.6rem] tracking-[0.18em] text-volt uppercase">
@@ -672,16 +673,16 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1100px] px-6 py-8">
-        <div className="mb-8 grid grid-cols-3 gap-4">
+      <main className="mx-auto max-w-[1100px] px-4 py-6 sm:px-6 sm:py-8">
+        <div className="mb-6 grid grid-cols-3 gap-2.5 sm:mb-8 sm:gap-4">
           {[
             ["Ordini", orders.length],
             ["Prodotti", products.length],
             ["Incassato", `${formatEuro(revenue)} €`],
           ].map(([label, val]) => (
-            <div key={label} className="rounded-2xl border border-line bg-elevated p-5">
-              <p className="font-mono text-[0.6rem] tracking-wider text-muted uppercase">{label}</p>
-              <p className="mt-1 font-display text-2xl text-bone">{val}</p>
+            <div key={label} className="rounded-2xl border border-line bg-elevated p-3 sm:p-5">
+              <p className="font-mono text-[0.5rem] tracking-wider text-muted uppercase sm:text-[0.6rem]">{label}</p>
+              <p className="mt-1 font-display text-lg break-words text-bone sm:text-2xl">{val}</p>
             </div>
           ))}
         </div>
@@ -707,7 +708,7 @@ export default function AdminDashboard() {
           {tab === "stock" && (
             <button
               onClick={() => setShowAdd(true)}
-              className="ml-auto rounded-full bg-volt px-5 py-2.5 font-mono text-xs font-bold tracking-wider text-black uppercase transition-transform hover:-translate-y-0.5"
+              className="w-full rounded-full bg-volt px-5 py-2.5 font-mono text-xs font-bold tracking-wider text-black uppercase transition-transform hover:-translate-y-0.5 sm:ml-auto sm:w-auto"
             >
               + Aggiungi prodotto
             </button>
@@ -745,19 +746,19 @@ export default function AdminDashboard() {
             {orders.map((o) => {
               const st = STATUS[o.status] || STATUS.pending;
               return (
-                <div key={o.id} className="rounded-2xl border border-line bg-elevated p-5">
+                <div key={o.id} className="rounded-2xl border border-line bg-elevated p-4 sm:p-5">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
+                    <div className="min-w-0">
                       <div className="font-mono text-sm font-bold tracking-wider text-bone">
                         #KRM-{orderNumber(o.id)}
                       </div>
-                      <div className="text-faint mt-0.5 font-mono text-[0.65rem] tracking-wide">
+                      <div className="text-faint mt-0.5 font-mono text-[0.65rem] tracking-wide break-words">
                         {fmtDate(o.created_at)} · {o.customer_username} ({o.customer_email})
                       </div>
                     </div>
                     <span
                       className={
-                        "rounded-full border px-3 py-1 font-mono text-[0.6rem] tracking-[0.14em] uppercase " + st.cls
+                        "shrink-0 rounded-full border px-3 py-1 font-mono text-[0.6rem] tracking-[0.14em] uppercase " + st.cls
                       }
                     >
                       {st.label}
@@ -766,11 +767,11 @@ export default function AdminDashboard() {
 
                   <div className="mt-4 flex flex-col gap-1.5">
                     {o.items.map((it, idx) => (
-                      <div key={idx} className="flex items-center justify-between text-sm">
-                        <span className="text-bone">
+                      <div key={idx} className="flex items-center justify-between gap-3 text-sm">
+                        <span className="min-w-0 text-bone">
                           {it.name} <span className="text-muted">· {it.color} · {it.size} ×{it.quantity}</span>
                         </span>
-                        <span className="text-muted font-mono text-xs">
+                        <span className="shrink-0 text-muted font-mono text-xs">
                           {formatEuro(it.unitPrice * it.quantity)} €
                         </span>
                       </div>
