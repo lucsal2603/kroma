@@ -31,6 +31,14 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  // Mostra il pop-up dello sconto ogni volta che entra un utente ancora idoneo
+  // (welcome_used === false): vale per la registrazione, il login e la ricarica
+  // della pagina con token salvato. La verifica delle 24h la fa WelcomeOffer,
+  // quindi se il buono è scaduto il pop-up semplicemente non comparirà.
+  useEffect(() => {
+    if (user && user.welcome_used === false) setShowWelcome(true);
+  }, [user]);
+
   const login = useCallback(async ({ email, password }) => {
     const { user, token } = await api.login({ email, password });
     setToken(token);
@@ -41,8 +49,7 @@ export function AuthProvider({ children }) {
   const register = useCallback(async ({ username, email, password }) => {
     const { user, token } = await api.register({ username, email, password });
     setToken(token);
-    setUser(user);
-    setShowWelcome(true); // nuovo iscritto: mostra il buono di benvenuto
+    setUser(user); // il pop-up parte dall'effetto qui sopra (utente idoneo)
     return user;
   }, []);
 
