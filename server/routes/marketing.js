@@ -14,6 +14,7 @@ import {
   sendCampaign,
   runDueCampaign,
   setConsent,
+  adminSetSubscribed,
   unsubscribeByToken,
 } from "../lib/marketing.js";
 
@@ -117,6 +118,24 @@ router.patch("/admin/marketing", async (req, res) => {
     if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
     console.error("marketing config error:", err);
     return res.status(500).json({ error: "Errore nel salvataggio delle impostazioni." });
+  }
+});
+
+// --- PATCH /admin/marketing/subscriber/:id (accende/spegne un iscritto) ---
+router.patch("/admin/marketing/subscriber/:id", async (req, res) => {
+  try {
+    const subscribed = Boolean(req.body?.subscribed);
+    await adminSetSubscribed(req.params.id, subscribed);
+    await logActivity({
+      userId: req.user.id,
+      username: req.user.username,
+      action: subscribed ? "user.email.on" : "user.email.off",
+    });
+    return res.json({ subscribed });
+  } catch (err) {
+    if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
+    console.error("admin subscriber error:", err);
+    return res.status(500).json({ error: "Errore nel salvataggio della preferenza." });
   }
 });
 

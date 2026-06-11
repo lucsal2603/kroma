@@ -59,13 +59,13 @@ export default function AuthModal({ open, onClose }) {
         await login({ email: email.trim(), password });
       } else {
         await register({ username: name.trim(), email: email.trim(), password });
-        // Salva il consenso marketing (best-effort: non blocca la registrazione)
-        if (marketingConsent) {
-          try {
-            await api.setMarketingConsent(true);
-          } catch {
-            /* il consenso si può sempre cambiare dopo dal profilo */
-          }
+        // Salva la scelta sul consenso (sempre, sia sì sia no): così chi non
+        // spunta resta "senza permesso" e l'admin non potrà attivarlo.
+        // Best-effort: non blocca la registrazione.
+        try {
+          await api.setMarketingConsent(marketingConsent);
+        } catch {
+          /* il consenso si può sempre cambiare dopo dal profilo */
         }
       }
       // Successo: chiudi e resetta i campi

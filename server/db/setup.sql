@@ -18,7 +18,8 @@ create table if not exists users (
   is_admin            boolean     not null default false, -- true = accede alla dashboard ADMIN
   disabled            boolean     not null default false, -- true = account bloccato (non può accedere)
   welcome_used        boolean     not null default false, -- buono di benvenuto già usato
-  marketing_consent   boolean     not null default false, -- consenso email pubblicitarie (opt-in)
+  marketing_consent   boolean     not null default false, -- riceve le email adesso (admin può spegnere/riaccendere)
+  marketing_opt_in    boolean     not null default false, -- ha dato il permesso alla registrazione (l'admin non può forzarlo)
   unsubscribe_token   text,                            -- token per il link "disiscriviti"
   reset_token         text,                            -- token recupero password
   reset_token_expires timestamptz,                     -- scadenza del token

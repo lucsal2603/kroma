@@ -106,6 +106,8 @@ export const api = {
     request("/admin/marketing", { method: "PATCH", auth: true, body: config }),
   sendMarketingNow: (exclude = []) =>
     request("/admin/marketing/send", { method: "POST", auth: true, body: { exclude } }),
+  setSubscriberActive: (id, subscribed) =>
+    request(`/admin/marketing/subscriber/${id}`, { method: "PATCH", auth: true, body: { subscribed } }),
 };
 
 export { API_BASE };

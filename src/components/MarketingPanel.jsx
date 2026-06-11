@@ -50,15 +50,33 @@ export default function MarketingPanel() {
   const [togglingAuto, setTogglingAuto] = useState(false);
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState(null); // { ok, text }
-  const [excluded, setExcluded] = useState(() => new Set()); // id degli iscritti da NON inviare
+  const [savingId, setSavingId] = useState(null); // iscritto in fase di salvataggio
   const [recipQuery, setRecipQuery] = useState(""); // filtro lista "chi riceve l'email"
 
-  const toggleExcluded = (id) =>
-    setExcluded((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+  // Accende/spegne il consenso di un iscritto — la scelta resta salvata.
+  const toggleSubscribed = async (u) => {
+    if (!u.optIn || savingId) return; // chi non ha dato il permesso non è attivabile
+    const next = !u.subscribed;
+    setSavingId(u.id);
+    setFeedback(null);
+    // aggiornamento ottimistico
+    setStatus((s) => ({
+      ...s,
+      recipientsList: s.recipientsList.map((r) => (r.id === u.id ? { ...r, subscribed: next } : r)),
+    }));
+    try {
+      await api.setSubscriberActive(u.id, next);
+    } catch (err) {
+      // rollback in caso di errore
+      setStatus((s) => ({
+        ...s,
+        recipientsList: s.recipientsList.map((r) => (r.id === u.id ? { ...r, subscribed: !next } : r)),
+      }));
+      setFeedback({ ok: false, text: err.message });
+    } finally {
+      setSavingId(null);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -118,30 +136,23 @@ export default function MarketingPanel() {
 
   const sendNow = async () => {
     const list = status?.recipientsList || [];
-    const excludeIds = list.filter((u) => excluded.has(u.id)).map((u) => u.id);
-    const toSend = list.length - excludeIds.length;
+    const toSend = list.filter((u) => u.subscribed).length;
     if (toSend <= 0) {
-      setFeedback({ ok: false, text: "Hai escluso tutti gli iscritti: non c'è nessuno a cui inviare." });
+      setFeedback({ ok: false, text: "Nessun iscritto attivo: non c'è nessuno a cui inviare." });
       return;
     }
-    const msg =
-      excludeIds.length > 0
-        ? `Inviare l'email con le offerte a ${toSend} ${toSend === 1 ? "cliente" : "clienti"}? (${excludeIds.length} ${excludeIds.length === 1 ? "escluso" : "esclusi"})`
-        : `Inviare adesso l'email con le offerte a tutti i ${toSend} clienti che hanno dato il consenso?`;
+    const msg = `Inviare adesso l'email con le offerte a ${toSend} ${toSend === 1 ? "cliente" : "clienti"}?`;
     if (!window.confirm(msg)) return;
     setSending(true);
     setFeedback(null);
     try {
-      const res = await api.sendMarketingNow(excludeIds);
+      const res = await api.sendMarketingNow();
       if (res.reason) {
         setFeedback({ ok: false, text: REASONS[res.reason] || "Invio non riuscito." });
       } else {
         setFeedback({
           ok: true,
-          text:
-            `Email inviata a ${res.sent} clienti su ${res.total} (${res.offers} offerte)` +
-            (res.excluded ? ` · ${res.excluded} esclusi` : "") +
-            ".",
+          text: `Email inviata a ${res.sent} clienti su ${res.total} (${res.offers} offerte).`,
         });
         await load();
       }
@@ -171,8 +182,7 @@ export default function MarketingPanel() {
 
   const s = status;
   const recipientsList = s.recipientsList || [];
-  const numExcluded = recipientsList.filter((u) => excluded.has(u.id)).length;
-  const toSend = recipientsList.length - numExcluded;
+  const toSend = recipientsList.filter((u) => u.subscribed).length;
 
   // Filtro della lista "chi riceve l'email": cerca per username o email.
   const rq = recipQuery.trim().toLowerCase();
@@ -290,14 +300,8 @@ export default function MarketingPanel() {
               L'email partirà a{" "}
               <span className="font-bold text-volt">
                 {toSend} {toSend === 1 ? "cliente" : "clienti"}
-              </span>
-              {numExcluded > 0 && (
-                <span className="text-faint">
-                  {" "}
-                  ({numExcluded} {numExcluded === 1 ? "escluso" : "esclusi"})
-                </span>
-              )}
-              .
+              </span>{" "}
+              con la spunta attiva.
             </p>
           </div>
           <button
@@ -309,24 +313,17 @@ export default function MarketingPanel() {
           </button>
         </div>
 
-        {/* Chi riceve l'email: togli la spunta per escludere qualcuno */}
+        {/* Chi riceve l'email: la spunta resta salvata; chi non ha dato il
+            consenso alla registrazione appare grigio e bloccato. */}
         {recipientsList.length > 0 && (
           <div className="mt-4 rounded-xl border border-line bg-ink p-3">
-            <div className="flex items-center justify-between gap-2 px-1">
-              <p className="font-mono text-[0.6rem] tracking-wider text-muted uppercase">
-                Chi riceve l'email
-              </p>
-              {numExcluded > 0 && (
-                <button
-                  onClick={() => setExcluded(new Set())}
-                  className="font-mono text-[0.6rem] tracking-wider text-volt uppercase hover:underline"
-                >
-                  Reimposta tutti
-                </button>
-              )}
-            </div>
+            <p className="px-1 font-mono text-[0.6rem] tracking-wider text-muted uppercase">
+              Chi riceve l'email
+            </p>
             <p className="mt-1 mb-2 px-1 text-faint text-[0.7rem]">
-              Togli la spunta a chi non vuoi far ricevere questa email.
+              Togli la spunta a chi non vuoi più far ricevere le email: la scelta
+              resta salvata anche per i prossimi invii. Chi non ha dato il consenso
+              alla registrazione appare grigio e non è attivabile.
             </p>
             {/* Ricerca per username o email dentro la lista */}
             <div className="relative mb-2">
@@ -348,30 +345,40 @@ export default function MarketingPanel() {
                 </p>
               )}
               {recipFiltered.map((u) => {
-                const isExcluded = excluded.has(u.id);
+                const locked = !u.optIn; // mai dato il consenso → bloccato
+                const saving = savingId === u.id;
                 return (
                   <label
                     key={u.id}
                     className={
-                      "flex cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2 transition-colors " +
-                      (isExcluded ? "opacity-45 hover:bg-elevated" : "hover:bg-elevated")
+                      "flex items-center gap-3 rounded-lg px-2.5 py-2 transition-colors " +
+                      (locked
+                        ? "cursor-not-allowed opacity-40"
+                        : "cursor-pointer hover:bg-elevated " + (u.subscribed ? "" : "opacity-55"))
                     }
                   >
                     <input
                       type="checkbox"
-                      checked={!isExcluded}
-                      onChange={() => toggleExcluded(u.id)}
-                      className="h-4 w-4 shrink-0 accent-volt"
+                      checked={u.subscribed}
+                      disabled={locked || saving}
+                      onChange={() => toggleSubscribed(u)}
+                      className="h-4 w-4 shrink-0 accent-volt disabled:cursor-not-allowed"
                     />
                     <span className="min-w-0 flex-1 truncate text-sm text-bone">
                       {u.username || "—"}
                       <span className="text-muted"> · {u.email}</span>
                     </span>
-                    {isExcluded && (
+                    {saving ? (
+                      <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-volt border-t-transparent" />
+                    ) : locked ? (
                       <span className="shrink-0 font-mono text-[0.55rem] tracking-wider text-faint uppercase">
-                        escluso
+                        no consenso
                       </span>
-                    )}
+                    ) : !u.subscribed ? (
+                      <span className="shrink-0 font-mono text-[0.55rem] tracking-wider text-faint uppercase">
+                        non riceve
+                      </span>
+                    ) : null}
                   </label>
                 );
               })}

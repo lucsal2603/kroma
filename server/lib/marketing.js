@@ -114,6 +114,71 @@ async function getRecipients() {
   }
 }
 
+// --- Lista per il pannello admin -------------------------------------
+// TUTTI gli utenti con email, col loro stato:
+//   subscribed = riceve ora (marketing_consent)
+//   optIn      = ha dato il permesso (marketing_opt_in)
+// Chi non ha mai dato il permesso (optIn=false) appare ma non si può attivare.
+// Difensiva: se le colonne non sono migrate, ripiega sui soli consenzienti.
+async function getPanelSubscribers(consentingFallback = []) {
+  try {
+    const { rows } = await query(
+      `select id, username, email, marketing_consent, marketing_opt_in
+         from users
+        where email is not null
+        order by created_at desc`
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      username: r.username,
+      email: maskEmail(r.email),
+      subscribed: Boolean(r.marketing_consent),
+      optIn: Boolean(r.marketing_opt_in),
+    }));
+  } catch (e) {
+    if (e.code !== "42703" && e.code !== "42P01") throw e;
+    // colonne non ancora migrate: mostra i consenzienti, tutti attivi/sbloccati
+    return consentingFallback.map((u) => ({
+      id: u.id,
+      username: u.username,
+      email: maskEmail(u.email),
+      subscribed: true,
+      optIn: true,
+    }));
+  }
+}
+
+// L'admin accende/spegne il consenso di un utente. Non può attivare chi non ha
+// mai dato il permesso (optIn=false). Non tocca mai l'opt-in: così uno che
+// avevi spento resta riattivabile.
+export async function adminSetSubscribed(userId, subscribed) {
+  if (subscribed) {
+    let optIn = true;
+    try {
+      const { rows } = await query(`select marketing_opt_in from users where id = $1`, [userId]);
+      optIn = Boolean(rows[0]?.marketing_opt_in);
+    } catch (e) {
+      if (e.code !== "42703") throw e; // colonna non migrata: nessun blocco
+    }
+    if (!optIn) {
+      const err = new Error("Questo iscritto non ha dato il consenso: non puoi attivargli le email.");
+      err.statusCode = 403;
+      throw err;
+    }
+  }
+  try {
+    await query(`update users set marketing_consent = $1 where id = $2`, [Boolean(subscribed), userId]);
+  } catch (e) {
+    if (e.code === "42703") {
+      const err = new Error("Database non aggiornato per le campagne. Esegui la migrazione su Supabase.");
+      err.statusCode = 409;
+      throw err;
+    }
+    throw e;
+  }
+  return { ok: true };
+}
+
 // Garantisce un token di disiscrizione per l'utente (lo crea se manca).
 async function ensureUnsubToken(userId, existing) {
   if (existing) return existing;
@@ -285,11 +350,7 @@ export async function getStatus() {
     lastSentAt: config.lastSentAt,
     nextSendAt,
     recipients: list.length,
-    recipientsList: list.map((u) => ({
-      id: u.id,
-      username: u.username,
-      email: maskEmail(u.email),
-    })),
+    recipientsList: await getPanelSubscribers(list),
     offers: products.length,
     products: products.map((p) => ({
       name: p.name,
@@ -321,11 +382,30 @@ export async function runDueCampaign() {
 // Imposta il consenso marketing di un utente. Difensiva: se la colonna non è
 // migrata (42703) non fa nulla e segnala available:false.
 export async function setConsent(userId, consent) {
+  // Se l'utente dà il consenso, registriamo anche il "permesso" (opt-in): da quel
+  // momento l'admin potrà spegnere/riaccendere le sue email. Se lo toglie, non
+  // tocchiamo l'opt-in.
   try {
-    await query(`update users set marketing_consent = $1 where id = $2`, [Boolean(consent), userId]);
+    if (consent) {
+      await query(
+        `update users set marketing_consent = true, marketing_opt_in = true where id = $1`,
+        [userId]
+      );
+    } else {
+      await query(`update users set marketing_consent = false where id = $1`, [userId]);
+    }
     return { ok: true };
   } catch (e) {
-    if (e.code === "42703") return { ok: false, available: false };
+    if (e.code === "42703") {
+      // marketing_opt_in non migrato: ripiega impostando solo il consenso.
+      try {
+        await query(`update users set marketing_consent = $1 where id = $2`, [Boolean(consent), userId]);
+        return { ok: true };
+      } catch (e2) {
+        if (e2.code === "42703") return { ok: false, available: false };
+        throw e2;
+      }
+    }
     throw e;
   }
 }
