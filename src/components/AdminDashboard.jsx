@@ -24,12 +24,27 @@ const fmtDate = (iso) =>
 const orderNumber = (id) => String(id).replace(/-/g, "").slice(0, 6).toUpperCase();
 
 // --- Riga prodotto con editor della giacenza + elimina ---------------
-function StockRow({ product, onSaved, onDeleted, onEdit, onDiscount }) {
+function StockRow({ product, onSaved, onDeleted, onEdit, onDiscount, onFeatured }) {
   const [value, setValue] = useState(String(product.stock ?? 0));
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(0);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [featuring, setFeaturing] = useState(false);
+
+  const toggleFeatured = async () => {
+    const next = !product.bestSeller;
+    setFeaturing(true);
+    setError("");
+    try {
+      const { product: updated } = await api.updateProduct(product.id, { bestSeller: next });
+      onFeatured(updated.id, Boolean(updated.bestSeller));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setFeaturing(false);
+    }
+  };
 
   const dirty = Number(value) !== Number(product.stock ?? 0);
   const meta = [product.code, product.color].filter(Boolean).join(" · ");
@@ -111,6 +126,20 @@ function StockRow({ product, onSaved, onDeleted, onEdit, onDiscount }) {
           }
         >
           %
+        </button>
+        <button
+          onClick={toggleFeatured}
+          disabled={featuring}
+          aria-label={product.bestSeller ? "Togli dall'evidenza" : "Metti in evidenza"}
+          title={product.bestSeller ? "Togli dall'evidenza" : "Metti in evidenza"}
+          className={
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border font-mono text-sm transition-colors disabled:opacity-40 " +
+            (product.bestSeller
+              ? "border-volt/60 bg-volt/10 text-volt"
+              : "border-line text-muted hover:border-volt/60 hover:text-bone")
+          }
+        >
+          {featuring ? "…" : product.bestSeller ? "★" : "☆"}
         </button>
         <button
           onClick={() => onEdit(product)}
@@ -455,6 +484,9 @@ function ProductForm({ onClose, onCreated, onUpdated, brands, product }) {
   const editing = !!product;
   const [name, setName] = useState(product?.name || "");
   const [brand, setBrand] = useState(product?.brand || "");
+  const [model, setModel] = useState(product?.model || "");
+  const [color, setColor] = useState(product?.color || "");
+  const [swatch, setSwatch] = useState(product?.swatch || "#888888");
   const [cats, setCats] = useState(brands);
   const [showNewCat, setShowNewCat] = useState(false);
   const [price, setPrice] = useState(product ? String(product.price) : "");
@@ -514,6 +546,9 @@ function ProductForm({ onClose, onCreated, onUpdated, brands, product }) {
         const payload = {
           name: name.trim(),
           brand: brand.trim(),
+          model: model.trim(),
+          color: color.trim(),
+          swatch: swatch.trim(),
           price: p,
           stock: stock === "" ? 0 : Number(stock),
           tag: tag.trim(),
@@ -526,6 +561,9 @@ function ProductForm({ onClose, onCreated, onUpdated, brands, product }) {
         const { product: created } = await api.createProduct({
           name: name.trim(),
           brand: brand.trim(),
+          model: model.trim(),
+          color: color.trim(),
+          swatch: swatch.trim(),
           price: p,
           stock: stock === "" ? 0 : Number(stock),
           tag: tag.trim(),
@@ -618,6 +656,32 @@ function ProductForm({ onClose, onCreated, onUpdated, brands, product }) {
                 </button>
               </div>
               <p className="text-faint mt-1.5 font-mono text-[0.58rem]">Bollino sulla foto. Se non scegli nulla sarà "KROMA".</p>
+            </div>
+
+            {/* Modello + Colore: se marca e modello coincidono con un altro
+                prodotto, il negozio li unisce come varianti colore (come i caschi). */}
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="eyebrow mb-1.5 block text-[0.6rem]">Modello (facolt.)</label>
+                <input className={field} value={model} onChange={(e) => setModel(e.target.value)} placeholder="Es. SZ-R EVO" />
+              </div>
+              <div className="flex-1">
+                <label className="eyebrow mb-1.5 block text-[0.6rem]">Colore</label>
+                <input className={field} value={color} onChange={(e) => setColor(e.target.value)} placeholder="Es. Frost Black" />
+              </div>
+            </div>
+            <div className="-mt-1 flex items-center gap-3">
+              <label className="eyebrow text-[0.6rem]">Pallino colore</label>
+              <input
+                type="color"
+                value={/^#[0-9a-fA-F]{6}$/.test(swatch) ? swatch : "#888888"}
+                onChange={(e) => setSwatch(e.target.value)}
+                aria-label="Pallino colore della variante"
+                className="h-9 w-12 cursor-pointer rounded-lg border border-line bg-ink"
+              />
+              <span className="text-faint font-mono text-[0.58rem] leading-snug">
+                Stessa marca + stesso modello = il sito li mostra come varianti colore da scegliere.
+              </span>
             </div>
 
             <div className="flex gap-3">
@@ -785,6 +849,12 @@ export default function AdminDashboard({ onPreviewSite }) {
   const onStockSaved = (id, stock) =>
     setProducts((list) => list.map((p) => (p.id === id ? { ...p, stock } : p)));
 
+  // "In evidenza" è esclusivo: quando uno diventa il #1, gli altri si spengono.
+  const onProductFeatured = (id, featured) =>
+    setProducts((list) =>
+      list.map((p) => (p.id === id ? { ...p, bestSeller: featured } : featured ? { ...p, bestSeller: false } : p))
+    );
+
   const onProductCreated = (product) => setProducts((list) => [product, ...list]);
   const onProductUpdated = (product) =>
     setProducts((list) => list.map((p) => (p.id === product.id ? { ...p, ...product } : p)));
@@ -898,6 +968,7 @@ export default function AdminDashboard({ onPreviewSite }) {
                 onDeleted={onProductDeleted}
                 onEdit={setEditProduct}
                 onDiscount={setDiscountProduct}
+                onFeatured={onProductFeatured}
               />
             ))}
           </div>

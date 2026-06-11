@@ -44,9 +44,11 @@ export default function ProductDetail() {
   if (!product) return null;
 
   const v = variant || product;
-  // Le varianti colore esistono solo per i caschi (stesso "model"). I prodotti
-  // generici aggiunti dall'admin hanno model vuoto: niente raggruppamento.
-  const colors = v.model ? products.filter((p) => p.model === v.model) : [];
+  // Le varianti colore raggruppano i prodotti con STESSA marca e STESSO modello
+  // (come i caschi). I prodotti generici senza modello non si raggruppano.
+  const colors = v.model
+    ? products.filter((p) => p.model === v.model && p.brand === v.brand)
+    : [];
   const meta = [v.brand, v.model, v.color].filter(Boolean).join(" · ");
 
   return (

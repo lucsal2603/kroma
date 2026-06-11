@@ -5,7 +5,7 @@
 //   DELETE /admin/products/:id     -> elimina un prodotto
 import { Router } from "express";
 import { query } from "../db/index.js";
-import { requireAuth, requireAdmin, requireOwner, isOwner } from "../lib/auth.js";
+import { requireAuth, requireAdmin, requireOwner, isOwner, OWNER_EMAIL } from "../lib/auth.js";
 import { logActivity, getActivity } from "../lib/activity.js";
 
 // Forma "pulita" del prodotto per il frontend (uguale a routes/products.js).
@@ -118,12 +118,17 @@ router.get("/admin/orders", async (_req, res) => {
 
 // --- POST /admin/products -------------------------------------------
 // Crea un nuovo prodotto. Campi minimi: name, price, img (foto fronte).
-// Il "code" è generato in automatico ed è unico. brand="KROMA", model/color
-// restano vuoti (prodotto generico, niente varianti colore come i caschi).
+// Il "code" è generato in automatico ed è unico. Se model+brand coincidono con
+// altri prodotti, il sito li mostra come varianti colore (come i caschi).
 router.post("/admin/products", async (req, res) => {
   try {
     const name = String(req.body?.name || "").trim();
     const brand = String(req.body?.brand || "").trim() || "KROMA";
+    // model + color: se uguali tra più prodotti, il sito li raggruppa come
+    // varianti colore (come i caschi). swatch = pallino colore nel selettore.
+    const model = String(req.body?.model || "").trim();
+    const color = String(req.body?.color || "").trim();
+    const swatch = String(req.body?.swatch || "").trim() || null;
     const price = Number(req.body?.price);
     const blurb = String(req.body?.blurb || "").trim();
     const tag = String(req.body?.tag || "").trim();
@@ -146,10 +151,10 @@ router.post("/admin/products", async (req, res) => {
     let useGallery = true;
     for (let attempt = 0; attempt < 8 && !row; attempt++) {
       const code = "KR-" + Date.now().toString(36).toUpperCase() + Math.floor(Math.random() * 1000);
-      const cols = "code, name, brand, model, color, price, stock, img_url, img_back_url, tag, best_seller, blurb, specs"
+      const cols = "code, name, brand, model, color, price, stock, img_url, img_back_url, swatch, tag, best_seller, blurb, specs"
         + (useGallery ? ", gallery" : "");
-      const vals = [code, name, brand, price, stock, img, imgBack, tag || null, blurb || null];
-      const placeholders = "$1,$2,$3,'','',$4,$5,$6,$7,$8,false,$9,'[]'::jsonb"
+      const vals = [code, name, brand, model, color, price, stock, img, imgBack, swatch, tag || null, blurb || null];
+      const placeholders = "$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,false,$12,'[]'::jsonb"
         + (useGallery ? `,$${vals.length + 1}` : "");
       if (useGallery) vals.push(JSON.stringify(images));
       try {
@@ -224,6 +229,10 @@ router.patch("/admin/products/:id", async (req, res) => {
       add("name", name);
     }
     if ("brand" in b) add("brand", String(b.brand || "").trim() || "KROMA");
+    if ("model" in b) add("model", String(b.model || "").trim());
+    if ("color" in b) add("color", String(b.color || "").trim());
+    if ("swatch" in b) add("swatch", String(b.swatch || "").trim() || null);
+    if ("bestSeller" in b) add("best_seller", Boolean(b.bestSeller));
     if ("price" in b) {
       const price = Number(b.price);
       if (!Number.isFinite(price) || price <= 0)
@@ -304,6 +313,12 @@ router.patch("/admin/products/:id", async (req, res) => {
     const { rows } = result;
     if (!rows[0]) return res.status(404).json({ error: "Prodotto non trovato." });
 
+    // "In evidenza" è esclusivo: se questo prodotto diventa il #1, spegniamo il
+    // bollino su tutti gli altri (resta evidenziato uno solo alla volta).
+    if (b.bestSeller === true) {
+      await query(`update products set best_seller = false where id <> $1`, [id]);
+    }
+
     // Registro attività: capiamo dal body che tipo di modifica è stata fatta.
     const name = rows[0].name;
     let action = "product.update";
@@ -312,6 +327,9 @@ router.patch("/admin/products/:id", async (req, res) => {
       const cleared = b.salePrice === null || b.salePrice === "" || b.salePrice === undefined;
       action = cleared ? "discount.remove" : "discount.set";
       detail = cleared ? name : `${name} → € ${Number(b.salePrice).toFixed(2)}`;
+    } else if ("bestSeller" in b && Object.keys(b).length === 1) {
+      action = b.bestSeller ? "product.feature" : "product.unfeature";
+      detail = name;
     } else if ("stock" in b && Object.keys(b).length === 1) {
       action = "stock.update";
       detail = `${name} (giacenza: ${Number(b.stock)})`;
@@ -356,6 +374,7 @@ router.get("/admin/users", async (req, res) => {
         username: u.username,
         email: maskEmail(u.email),
         isAdmin: Boolean(u.is_admin),
+        isOwner: String(u.email || "").toLowerCase() === OWNER_EMAIL,
         subscribed: u.marketing_consent === undefined ? null : Boolean(u.marketing_consent),
         createdAt: u.created_at,
       })),

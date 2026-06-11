@@ -59,6 +59,10 @@ export function AuthProvider({ children }) {
     setShowWelcome(false);
   }, []);
 
+  // Aggiorna localmente alcuni campi dell'utente (es. il consenso alle email)
+  // senza dover ricaricare il profilo dal server.
+  const updateUser = useCallback((patch) => setUser((u) => (u ? { ...u, ...patch } : u)), []);
+
   const openAuth = useCallback(() => setAuthOpen(true), []);
   const closeAuth = useCallback(() => setAuthOpen(false), []);
   const dismissWelcome = useCallback(() => setShowWelcome(false), []);
@@ -72,13 +76,14 @@ export function AuthProvider({ children }) {
       login,
       register,
       logout,
+      updateUser,
       authOpen,
       openAuth,
       closeAuth,
       showWelcome,
       dismissWelcome,
     }),
-    [user, ready, login, register, logout, authOpen, openAuth, closeAuth, showWelcome, dismissWelcome]
+    [user, ready, login, register, logout, updateUser, authOpen, openAuth, closeAuth, showWelcome, dismissWelcome]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

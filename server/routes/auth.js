@@ -15,25 +15,32 @@ const router = Router();
 const APP_URL = process.env.APP_URL || "https://lucsal2603.github.io/kroma";
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 ora
 
-// Campi pubblici dell'utente (mai esporre password_hash / reset_token)
-const PUBLIC_USER = "id, username, email, is_admin, welcome_used, created_at";
-// Versione "vecchia" senza welcome_used: usata come ripiego se la colonna
-// non è ancora stata migrata (così registrazione/login non si rompono).
+// Campi pubblici dell'utente (mai esporre password_hash / reset_token).
+// marketing_consent serve al sito (sezione "Iscriviti all'abisso") per sapere
+// se l'utente loggato riceve già le email.
+const PUBLIC_USER = "id, username, email, is_admin, welcome_used, marketing_consent, created_at";
+// Ripieghi progressivi se una colonna non è ancora migrata (42703), così
+// registrazione/login non si rompono mai su database più vecchi.
+const PUBLIC_USER_NO_MKT = "id, username, email, is_admin, welcome_used, created_at";
 const PUBLIC_USER_LEGACY = "id, username, email, is_admin, created_at";
 
-// Esegue una query "con welcome_used" e, se la colonna non esiste (42703),
-// riprova con la versione legacy. `build(cols)` deve restituire [sql, params].
+// Esegue una query provando i set di colonne dal più completo al più "magro":
+// se una colonna non esiste (42703) ripiega su quello successivo. Sicuro anche
+// per gli INSERT: un 42703 sul RETURNING fa fallire lo statement senza inserire.
+// `build(cols)` deve restituire [sql, params].
 async function queryWithWelcome(build) {
-  try {
-    const [sql, params] = build(PUBLIC_USER);
-    return await query(sql, params);
-  } catch (e) {
-    if (e.code === "42703") {
-      const [sql, params] = build(PUBLIC_USER_LEGACY);
+  const tiers = [PUBLIC_USER, PUBLIC_USER_NO_MKT, PUBLIC_USER_LEGACY];
+  let lastErr;
+  for (const cols of tiers) {
+    try {
+      const [sql, params] = build(cols);
       return await query(sql, params);
+    } catch (e) {
+      if (e.code !== "42703") throw e;
+      lastErr = e;
     }
-    throw e;
   }
+  throw lastErr;
 }
 
 function isValidEmail(email) {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { colorForName } from "../lib/adminColors";
 
 // Traduce il codice azione in testo leggibile + icona + colore.
 const ACTIONS = {
@@ -7,6 +8,8 @@ const ACTIONS = {
   "product.create": { label: "Prodotto pubblicato", icon: "✨", cls: "border-volt/40 bg-volt/10 text-volt" },
   "product.update": { label: "Prodotto modificato", icon: "✎", cls: "border-line text-bone" },
   "product.delete": { label: "Prodotto eliminato", icon: "🗑", cls: "border-red-500/40 bg-red-500/10 text-red-300" },
+  "product.feature": { label: "Messo in evidenza", icon: "⭐", cls: "border-volt/40 bg-volt/10 text-volt" },
+  "product.unfeature": { label: "Tolto dall'evidenza", icon: "☆", cls: "border-line text-muted" },
   "stock.update": { label: "Giacenza aggiornata", icon: "📦", cls: "border-line text-bone" },
   "discount.set": { label: "Sconto applicato", icon: "%", cls: "border-volt/40 bg-volt/10 text-volt" },
   "discount.remove": { label: "Sconto rimosso", icon: "%", cls: "border-line text-muted" },
@@ -27,29 +30,6 @@ const fmt = (iso) =>
     hour: "2-digit",
     minute: "2-digit",
   });
-
-// Ogni admin ha il suo colore fisso: lo stesso nome → sempre lo stesso colore.
-// Il proprietario (lukesalvemini@gmail.com) ha il giallo riservato; gli altri
-// pescano da una palette che il giallo non lo contiene, così resta unico suo.
-const OWNER_COLOR = "#facc15"; // giallo (riservato al proprietario)
-
-const NAME_COLORS = [
-  "#7dd3fc", // azzurro
-  "#f0abfc", // rosa
-  "#86efac", // verde
-  "#fca5a5", // rosso tenue
-  "#c4b5fd", // viola
-  "#fdba74", // arancio
-  "#5eead4", // turchese
-];
-
-const colorForName = (name, isOwner) => {
-  if (isOwner) return OWNER_COLOR;
-  const s = String(name || "");
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return NAME_COLORS[h % NAME_COLORS.length];
-};
 
 export default function ActivityLog() {
   const [logs, setLogs] = useState([]);

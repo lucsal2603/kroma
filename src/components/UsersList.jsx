@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../lib/api";
 import { formatEuro } from "../data/products";
+import { colorForName } from "../lib/adminColors";
 
 const STATUS = {
   pending: { label: "In lavorazione", cls: "border-line text-muted" },
@@ -278,20 +279,34 @@ function UserRow({ user, onOpen }) {
     }
   };
 
+  // Gli admin hanno la cornice del loro colore fisso (come nel registro
+  // attività); il proprietario il giallo. Gli iscritti normali restano neutri.
+  const color = user.isAdmin ? colorForName(user.username, user.isOwner) : null;
+
   return (
     <button
       type="button"
       onClick={() => onOpen(user.id)}
-      className="flex w-full flex-wrap items-center gap-3 rounded-2xl border border-line bg-elevated p-3 text-left transition-colors hover:border-volt/40 sm:p-4"
+      className={
+        "flex w-full flex-wrap items-center gap-3 rounded-2xl border bg-elevated p-3 text-left transition-colors sm:p-4 " +
+        (color ? "" : "border-line hover:border-volt/40")
+      }
+      style={color ? { borderColor: color + "66", backgroundColor: color + "0d" } : undefined}
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-ink font-display text-base text-bone uppercase">
+      <span
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-ink font-display text-base text-bone uppercase"
+        style={color ? { borderColor: color + "66", color } : undefined}
+      >
         {(user.username || "?").slice(0, 1)}
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="truncate font-display text-base text-bone sm:text-lg">{user.username}</span>
           {user.isAdmin && (
-            <span className="shrink-0 rounded-full border border-volt/50 bg-volt/10 px-2 py-0.5 font-mono text-[0.55rem] tracking-[0.16em] text-volt uppercase">
+            <span
+              className="shrink-0 rounded-full border px-2 py-0.5 font-mono text-[0.55rem] tracking-[0.16em] uppercase"
+              style={{ color, borderColor: color + "80", backgroundColor: color + "1f" }}
+            >
               Admin
             </span>
           )}
