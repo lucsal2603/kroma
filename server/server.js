@@ -10,6 +10,7 @@ import checkoutRoutes from "./routes/checkout.js";
 import adminRoutes from "./routes/admin.js";
 import paypalRoutes from "./routes/paypal.js";
 import marketingRoutes from "./routes/marketing.js";
+import reviewRoutes from "./routes/reviews.js";
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -51,6 +52,7 @@ app.use("/", checkoutRoutes); // /checkout, /orders
 app.use("/", adminRoutes);    // /admin/orders, /admin/products/:id
 app.use("/", paypalRoutes);   // /paypal/config, /paypal/create-order, /paypal/capture-order
 app.use("/", marketingRoutes); // /user/marketing, /unsubscribe, /marketing/cron, /admin/marketing
+app.use("/", reviewRoutes);    // /reviews, /admin/reviews
 
 // --- 404 -------------------------------------------------------------
 app.use((req, res) => {

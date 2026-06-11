@@ -135,6 +135,19 @@ create table if not exists admin_logs (
 create index if not exists idx_admin_logs_created on admin_logs (created_at desc);
 
 -- =====================================================================
+-- RECENSIONI DEL SITO (valutazione 1-5 + commento del cliente)
+-- =====================================================================
+create table if not exists site_reviews (
+  id         uuid        primary key default gen_random_uuid(),
+  user_id    uuid        references users(id) on delete set null,
+  username   text,
+  rating     int         not null check (rating between 1 and 5),
+  comment    text,
+  created_at timestamptz not null default now()
+);
+create index if not exists site_reviews_created_idx on site_reviews (created_at desc);
+
+-- =====================================================================
 -- SEED — i tre caschi ARAI SZ-R EVO (allineati a src/data/products.js)
 -- Idempotente: su conflitto di "code" aggiorna i campi.
 -- =====================================================================

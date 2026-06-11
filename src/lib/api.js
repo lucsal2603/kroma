@@ -130,6 +130,12 @@ export const api = {
     request("/admin/marketing/send", { method: "POST", auth: true, body: { exclude } }),
   setSubscriberActive: (id, subscribed) =>
     request(`/admin/marketing/subscriber/${id}`, { method: "PATCH", auth: true, body: { subscribed } }),
+
+  // --- Recensioni del sito ---
+  // submitReview funziona anche da ospite: il token viene aggiunto solo se c'è.
+  submitReview: (payload) => request("/reviews", { method: "POST", auth: true, body: payload }),
+  getReviews: () => request("/admin/reviews", { auth: true }),
+  deleteReview: (id) => request(`/admin/reviews/${id}`, { method: "DELETE", auth: true }),
 };
 
 export { API_BASE };

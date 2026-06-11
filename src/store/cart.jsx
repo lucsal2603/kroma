@@ -19,6 +19,11 @@ export function CartProvider({ children }) {
     });
     setProduct(null);
     setCartOpen(true);
+    // Avvisa il resto del sito che è stato aggiunto un prodotto: serve a
+    // ReviewPrompt per chiedere (una volta a sessione) una valutazione.
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("kroma:added-to-cart"));
+    }
   }, []);
 
   const setQty = useCallback((id, qty) => {

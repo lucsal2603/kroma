@@ -7,6 +7,7 @@ import HelmetFlip from "./HelmetFlip";
 import MarketingPanel from "./MarketingPanel";
 import ActivityLog from "./ActivityLog";
 import UsersList from "./UsersList";
+import ReviewsPanel from "./ReviewsPanel";
 import Logo from "./Logo";
 
 // Etichette leggibili per lo stato dell'ordine.
@@ -918,6 +919,7 @@ export default function AdminDashboard({ onPreviewSite }) {
             ["stock", "Prodotti & giacenza"],
             ["marketing", "Campagne email"],
             ["users", "Iscritti"],
+            ["reviews", "Recensioni"],
             ["activity", "Registro attività"],
           ].map(([key, label]) => (
             <button
@@ -956,6 +958,8 @@ export default function AdminDashboard({ onPreviewSite }) {
           <MarketingPanel />
         ) : tab === "users" ? (
           <UsersList />
+        ) : tab === "reviews" ? (
+          <ReviewsPanel />
         ) : tab === "activity" ? (
           <ActivityLog />
         ) : tab === "stock" ? (

@@ -15,6 +15,7 @@ import ProductDetail from "./components/ProductDetail";
 import CartDrawer from "./components/CartDrawer";
 import CookieConsent from "./components/CookieConsent";
 import PolicyModal from "./components/PolicyModal";
+import ReviewPrompt from "./components/ReviewPrompt";
 import AdminDashboard from "./components/AdminDashboard";
 import WelcomeOffer from "./components/WelcomeOffer";
 
@@ -52,6 +53,7 @@ function Shell() {
       <CartDrawer />
       <CookieConsent />
       <PolicyModal />
+      <ReviewPrompt />
       <AuthModalHost />
       <WelcomeOffer />
     </div>
