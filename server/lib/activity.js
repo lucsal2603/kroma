@@ -24,7 +24,7 @@ export async function getActivity(limit = 100) {
   try {
     const n = Math.max(1, Math.min(500, Number(limit) || 100));
     const { rows } = await query(
-      `select l.user_id, l.username, l.action, l.detail, l.created_at,
+      `select l.id, l.user_id, l.username, l.action, l.detail, l.created_at,
               lower(u.email) as email
          from admin_logs l
          left join users u on u.id = l.user_id
@@ -33,6 +33,7 @@ export async function getActivity(limit = 100) {
       [n]
     );
     return rows.map((r) => ({
+      id: r.id,
       userId: r.user_id,
       username: r.username,
       action: r.action,
@@ -43,6 +44,28 @@ export async function getActivity(limit = 100) {
     }));
   } catch (e) {
     if (e.code === "42P01") return [];
+    throw e;
+  }
+}
+
+// Svuota completamente il registro (solo il proprietario). Ritorna quante righe.
+export async function clearActivity() {
+  try {
+    const { rowCount } = await query(`delete from admin_logs`);
+    return rowCount || 0;
+  } catch (e) {
+    if (e.code === "42P01") return 0; // tabella non migrata: niente da cancellare
+    throw e;
+  }
+}
+
+// Cancella una singola riga del registro. Ritorna true se ne ha tolta una.
+export async function deleteActivityEntry(id) {
+  try {
+    const { rowCount } = await query(`delete from admin_logs where id = $1`, [id]);
+    return rowCount > 0;
+  } catch (e) {
+    if (e.code === "42P01") return false;
     throw e;
   }
 }

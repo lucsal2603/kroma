@@ -99,6 +99,8 @@ export const api = {
   setUserAdmin: (id, isAdmin) =>
     request(`/admin/users/${id}/admin`, { method: "PATCH", auth: true, body: { isAdmin } }),
   getActivity: () => request("/admin/activity", { auth: true }),
+  clearActivity: () => request("/admin/activity", { method: "DELETE", auth: true }),
+  deleteActivityEntry: (id) => request(`/admin/activity/${id}`, { method: "DELETE", auth: true }),
 
   // --- Admin: campagne email ---
   getMarketing: () => request("/admin/marketing", { auth: true }),

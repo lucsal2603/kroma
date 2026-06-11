@@ -6,7 +6,7 @@
 import { Router } from "express";
 import { query } from "../db/index.js";
 import { requireAuth, requireAdmin, requireOwner, isOwner, OWNER_EMAIL } from "../lib/auth.js";
-import { logActivity, getActivity } from "../lib/activity.js";
+import { logActivity, getActivity, clearActivity, deleteActivityEntry } from "../lib/activity.js";
 
 // Forma "pulita" del prodotto per il frontend (uguale a routes/products.js).
 function toProduct(r) {
@@ -536,13 +536,37 @@ router.get("/admin/users/:id/email", async (req, res) => {
 
 // --- GET /admin/activity --------------------------------------------
 // Registro attività admin: chi ha fatto cosa e quando.
-router.get("/admin/activity", async (_req, res) => {
+router.get("/admin/activity", async (req, res) => {
   try {
     const logs = await getActivity(100);
-    return res.json({ logs });
+    // viewerIsOwner: solo il proprietario vede i tasti per svuotare/cancellare.
+    return res.json({ logs, viewerIsOwner: await isOwner(req.user.id) });
   } catch (err) {
     console.error("admin activity error:", err);
     return res.status(500).json({ error: "Errore nel recupero del registro attività." });
+  }
+});
+
+// --- DELETE /admin/activity (svuota tutto, solo proprietario) --------
+router.delete("/admin/activity", requireOwner, async (_req, res) => {
+  try {
+    const removed = await clearActivity();
+    return res.json({ cleared: true, removed });
+  } catch (err) {
+    console.error("admin activity clear error:", err);
+    return res.status(500).json({ error: "Errore nello svuotamento del registro." });
+  }
+});
+
+// --- DELETE /admin/activity/:id (una riga, solo proprietario) --------
+router.delete("/admin/activity/:id", requireOwner, async (req, res) => {
+  try {
+    const ok = await deleteActivityEntry(req.params.id);
+    if (!ok) return res.status(404).json({ error: "Voce non trovata." });
+    return res.json({ deleted: req.params.id });
+  } catch (err) {
+    console.error("admin activity delete error:", err);
+    return res.status(500).json({ error: "Errore nella cancellazione della voce." });
   }
 });
 
