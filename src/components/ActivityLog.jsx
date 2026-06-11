@@ -29,10 +29,9 @@ const fmt = (iso) =>
   });
 
 // Ogni admin ha il suo colore fisso: lo stesso nome → sempre lo stesso colore.
-// "lucsal" ha il giallo riservato; gli altri pescano da una palette che il
-// giallo non lo contiene, così resta unico per lucsal.
-const MY_NAME = "lucsal";
-const MY_COLOR = "#facc15"; // giallo (riservato a lucsal)
+// Il proprietario (lukesalvemini@gmail.com) ha il giallo riservato; gli altri
+// pescano da una palette che il giallo non lo contiene, così resta unico suo.
+const OWNER_COLOR = "#facc15"; // giallo (riservato al proprietario)
 
 const NAME_COLORS = [
   "#7dd3fc", // azzurro
@@ -44,9 +43,9 @@ const NAME_COLORS = [
   "#5eead4", // turchese
 ];
 
-const colorForName = (name) => {
+const colorForName = (name, isOwner) => {
+  if (isOwner) return OWNER_COLOR;
   const s = String(name || "");
-  if (s.trim().toLowerCase() === MY_NAME) return MY_COLOR;
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return NAME_COLORS[h % NAME_COLORS.length];
@@ -127,7 +126,7 @@ export default function ActivityLog() {
                 {l.detail && <span className="text-muted"> · {l.detail}</span>}
               </div>
               <div className="text-faint font-mono text-[0.62rem] tracking-wide">
-                <span className="font-semibold" style={{ color: colorForName(l.username) }}>
+                <span className="font-semibold" style={{ color: colorForName(l.username, l.isOwner) }}>
                   {l.username || "—"}
                 </span>{" "}
                 · {fmt(l.createdAt)}
