@@ -381,6 +381,11 @@ export default function UsersList() {
   // ricerca teniamo a video la lista precedente (niente sfarfallio).
   const firstLoad = loading && users.length === 0 && !error;
 
+  // Gli admin sempre in cima (prima il proprietario), poi gli iscritti normali.
+  // Ordinamento stabile: a parità di ruolo resta l'ordine del server (più recenti prima).
+  const rank = (u) => (u.isOwner ? 0 : u.isAdmin ? 1 : 2);
+  const sorted = [...users].sort((a, b) => rank(a) - rank(b));
+
   return (
     <div className="flex flex-col gap-3">
       {/* Barra di ricerca: per nome o email */}
@@ -420,7 +425,7 @@ export default function UsersList() {
             {users.length} {users.length === 1 ? "iscritto" : "iscritti"}
             {q ? " trovati" : ""} · tocca un iscritto per i dettagli · l'email è oscurata per privacy.
           </p>
-          {users.map((u, i) => (
+          {sorted.map((u, i) => (
             <UserRow key={u.id || i} user={u} onOpen={setSelectedId} />
           ))}
         </>
