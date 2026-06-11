@@ -28,6 +28,26 @@ const fmt = (iso) =>
     minute: "2-digit",
   });
 
+// Ogni admin ha il suo colore fisso: lo stesso nome → sempre lo stesso colore.
+// (Hash semplice del nome → indice nella palette.)
+const NAME_COLORS = [
+  "#d7ff3e", // volt
+  "#7dd3fc", // azzurro
+  "#f0abfc", // rosa
+  "#fbbf24", // ambra
+  "#86efac", // verde
+  "#fca5a5", // rosso tenue
+  "#c4b5fd", // viola
+  "#fdba74", // arancio
+];
+
+const colorForName = (name) => {
+  const s = String(name || "");
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return NAME_COLORS[h % NAME_COLORS.length];
+};
+
 export default function ActivityLog() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -103,7 +123,10 @@ export default function ActivityLog() {
                 {l.detail && <span className="text-muted"> · {l.detail}</span>}
               </div>
               <div className="text-faint font-mono text-[0.62rem] tracking-wide">
-                {l.username || "—"} · {fmt(l.createdAt)}
+                <span className="font-semibold" style={{ color: colorForName(l.username) }}>
+                  {l.username || "—"}
+                </span>{" "}
+                · {fmt(l.createdAt)}
               </div>
             </div>
           </div>
