@@ -747,7 +747,7 @@ function ImagePicker({ label, value, onPick, onClear }) {
   );
 }
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ onPreviewSite }) {
   const { user, logout } = useAuth();
   const [tab, setTab] = useState("orders"); // "orders" | "stock"
   const [products, setProducts] = useState([]);
@@ -805,9 +805,16 @@ export default function AdminDashboard() {
         <div className="mx-auto flex max-w-[1100px] items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
             <Logo markClass="h-7 w-7" textClass="text-xl" />
-            <span className="rounded-full border border-volt/50 bg-volt/10 px-3 py-1 font-mono text-[0.6rem] tracking-[0.18em] text-volt uppercase">
+            <span className="hidden rounded-full border border-volt/50 bg-volt/10 px-3 py-1 font-mono text-[0.6rem] tracking-[0.18em] text-volt uppercase sm:inline">
               Admin
             </span>
+            <button
+              onClick={onPreviewSite}
+              title="Vedi il sito come un cliente"
+              className="rounded-full border border-line px-3 py-1.5 font-mono text-[0.6rem] tracking-wider text-muted uppercase transition-colors hover:border-volt/50 hover:text-bone"
+            >
+              👁 Vedi come utente
+            </button>
           </div>
           <div className="flex items-center gap-4">
             <span className="hidden font-mono text-xs text-muted sm:inline">{user?.username}</span>

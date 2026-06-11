@@ -5,7 +5,7 @@ import { useAuth } from "../store/auth";
 import Logo from "./Logo";
 import OrdersModal from "./OrdersModal";
 
-export default function Nav() {
+export default function Nav({ adminPreview = false, onExitPreview }) {
   const { count, openCart } = useCart();
   const { user, isAuthenticated, logout, openAuth } = useAuth();
   const navRef = useRef(null);
@@ -54,9 +54,20 @@ export default function Nav() {
       }
     >
       <nav className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-5 lg:px-10">
-        <a data-nav href="#top" aria-label="KROMA — home">
-          <Logo markClass="h-8 w-8" textClass="text-2xl" />
-        </a>
+        <div data-nav className="flex items-center gap-3">
+          <a href="#top" aria-label="KROMA — home">
+            <Logo markClass="h-8 w-8" textClass="text-2xl" />
+          </a>
+          {adminPreview && (
+            <button
+              onClick={onExitPreview}
+              title="Torna all'area amministratore"
+              className="rounded-full border border-volt/50 bg-volt/10 px-3 py-1.5 font-mono text-[0.6rem] tracking-wider text-volt uppercase transition-colors hover:border-volt"
+            >
+              ← Area admin
+            </button>
+          )}
+        </div>
         <ul className="hidden gap-9 font-mono text-xs tracking-[0.18em] text-muted uppercase md:flex">
           {[
             ["Collezione", "#collezione"],

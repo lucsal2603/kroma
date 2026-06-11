@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useSmoothScroll } from "./hooks/useSmoothScroll";
 import { AuthProvider, useAuth } from "./store/auth";
 import { ProductsProvider } from "./store/products";
@@ -25,13 +26,19 @@ function AuthModalHost() {
 
 // Se chi accede è un amministratore, al posto del negozio mostra la
 // dashboard ADMIN. Altrimenti il sito normale da cliente.
+// L'admin può però "vedere il sito come un utente normale" con un tasto:
+// in quel caso mostriamo il negozio con un pulsante per tornare all'area admin.
 function Shell() {
   const { isAdmin } = useAuth();
-  if (isAdmin) return <AdminDashboard />;
+  const [previewUser, setPreviewUser] = useState(false);
+
+  if (isAdmin && !previewUser) {
+    return <AdminDashboard onPreviewSite={() => setPreviewUser(true)} />;
+  }
 
   return (
     <div id="top" className="min-h-screen bg-ink text-bone">
-      <Nav />
+      <Nav adminPreview={isAdmin && previewUser} onExitPreview={() => setPreviewUser(false)} />
       <main>
         <Hero />
         <Marquee />
