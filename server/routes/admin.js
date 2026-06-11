@@ -57,9 +57,10 @@ router.use("/admin", requireAuth, requireAdmin);
 // Tutti gli ordini con cliente, indirizzo e righe d'ordine.
 router.get("/admin/orders", async (_req, res) => {
   try {
-    const { rows } = await query(
+    // `discountCol` viene tolto se la colonna discount_percent non è migrata.
+    const buildSql = (discountCol) =>
       `select o.id, o.status, o.total, o.created_at, o.shipping,
-              o.customer_email, u.username as customer_username,
+              o.customer_email, ${discountCol}u.username as customer_username,
               coalesce(json_agg(
                 json_build_object(
                   'name', p.name, 'color', p.color, 'size', oi.size,
@@ -71,10 +72,20 @@ router.get("/admin/orders", async (_req, res) => {
          left join order_items oi on oi.order_id = o.id
          left join products p     on p.id = oi.product_id
         group by o.id, u.username
-        order by o.created_at desc`
-    );
+        order by o.created_at desc`;
+    let rows;
+    try {
+      ({ rows } = await query(buildSql("o.discount_percent, ")));
+    } catch (e) {
+      if (e.code !== "42703") throw e;
+      ({ rows } = await query(buildSql("")));
+    }
     return res.json({
-      orders: rows.map((o) => ({ ...o, total: Number(o.total) })),
+      orders: rows.map((o) => ({
+        ...o,
+        total: Number(o.total),
+        discount_percent: Number(o.discount_percent || 0),
+      })),
     });
   } catch (err) {
     console.error("admin orders error:", err);

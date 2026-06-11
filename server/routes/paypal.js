@@ -12,7 +12,7 @@ import {
   createOrder,
   captureOrder,
 } from "../lib/paypal.js";
-import { createOrderFromCart, normalizeShipping, readCart } from "../lib/orders.js";
+import { createOrderFromCart, normalizeShipping, quoteForUser } from "../lib/orders.js";
 
 const router = Router();
 
@@ -33,8 +33,9 @@ router.post("/paypal/create-order", requireAuth, async (req, res) => {
     return res.status(503).json({ error: "Pagamenti PayPal non configurati." });
   }
   try {
-    const { total } = await readCart(req.user.id);
-    if (!total || total <= 0) {
+    // Totale GIÀ scontato (sconto di benvenuto applicato lato server).
+    const { subtotal, total } = await quoteForUser(req.user.id);
+    if (!subtotal || subtotal <= 0) {
       return res.status(400).json({ error: "Il carrello è vuoto." });
     }
     const order = await createOrder(total);
@@ -79,6 +80,9 @@ router.post("/paypal/capture-order", requireAuth, async (req, res) => {
         id: result.orderId,
         status: result.status,
         total: result.total,
+        subtotal: result.subtotal,
+        discount: result.discount,
+        discountPercent: result.discountPercent,
         items: result.items,
         customerEmail: result.customerEmail,
       },

@@ -3,11 +3,12 @@ import { formatEuro } from "../data/products";
 import { useCart } from "../store/cart";
 import { useAuth } from "../store/auth";
 import { api } from "../lib/api";
+import { welcomeState, applyDiscount } from "../lib/welcome";
 import PaypalCheckout from "./PaypalCheckout";
 
 export default function CartDrawer() {
   const { items, count, subtotal, setQty, remove, clear, cartOpen, closeCart } = useCart();
-  const { isAuthenticated, openAuth } = useAuth();
+  const { isAuthenticated, openAuth, user } = useAuth();
   const [done, setDone] = useState(false);
   const [paying, setPaying] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -25,6 +26,15 @@ export default function CartDrawer() {
   // Configurazione PayPal letta dal backend (client id pubblico + valuta).
   // Se PayPal non è configurato, si usa il pagamento simulato come ripiego.
   const [pp, setPp] = useState({ loading: true, configured: false, clientId: "", currency: "EUR" });
+
+  // Configurazione sconto di benvenuto (percentuale + durata). Serve solo per
+  // MOSTRARE lo sconto: l'importo reale è sempre ricalcolato dal server.
+  const [welcomeCfg, setWelcomeCfg] = useState(null);
+  const wState = welcomeState(user, welcomeCfg);
+  const hasDiscount = wState.eligible && wState.percent > 0;
+  const { discount, total } = hasDiscount
+    ? applyDiscount(subtotal, wState.percent)
+    : { discount: 0, total: subtotal };
 
   const setShipField = (field) => (e) =>
     setShip((s) => ({ ...s, [field]: e.target.value }));
@@ -51,6 +61,22 @@ export default function CartDrawer() {
       })
       .catch(() => {
         if (active) setPp({ loading: false, configured: false, clientId: "", currency: "EUR" });
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Carica la configurazione dello sconto di benvenuto una volta sola.
+  useEffect(() => {
+    let active = true;
+    api
+      .getWelcomeConfig()
+      .then((c) => {
+        if (active) setWelcomeCfg(c);
+      })
+      .catch(() => {
+        /* se non riusciamo a leggerla, semplicemente non mostriamo lo sconto */
       });
     return () => {
       active = false;
@@ -315,9 +341,21 @@ export default function CartDrawer() {
                 <span>Spedizione</span>
                 <span className="text-volt">Gratuita</span>
               </div>
+              {hasDiscount && (
+                <>
+                  <div className="mt-2 flex justify-between text-muted">
+                    <span>Subtotale</span>
+                    <span className="text-bone">{formatEuro(subtotal)} €</span>
+                  </div>
+                  <div className="mt-2 flex justify-between text-volt">
+                    <span>Sconto benvenuto (-{wState.percent}%)</span>
+                    <span>−{formatEuro(discount)} €</span>
+                  </div>
+                </>
+              )}
               <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
                 <span className="text-muted">Totale</span>
-                <span className="font-sans text-xl font-semibold text-bone">{formatEuro(subtotal)} €</span>
+                <span className="font-sans text-xl font-semibold text-bone">{formatEuro(total)} €</span>
               </div>
             </div>
 
@@ -448,9 +486,21 @@ export default function CartDrawer() {
 
         {!done && !paying && (
           <div className="border-t border-line px-6 py-6">
+            {hasDiscount && (
+              <div className="mb-3 rounded-2xl border border-volt/40 bg-volt/10 px-4 py-3 font-mono text-xs">
+                <div className="flex items-center justify-between text-muted">
+                  <span>Subtotale</span>
+                  <span className="text-bone">{formatEuro(subtotal)} €</span>
+                </div>
+                <div className="mt-1.5 flex items-center justify-between text-volt">
+                  <span>🎁 Sconto benvenuto (-{wState.percent}%)</span>
+                  <span>−{formatEuro(discount)} €</span>
+                </div>
+              </div>
+            )}
             <div className="mb-5 flex items-center justify-between">
-              <span className="eyebrow text-[0.6rem]">Subtotale</span>
-              <span className="font-display text-3xl text-bone">{formatEuro(subtotal)} €</span>
+              <span className="eyebrow text-[0.6rem]">{hasDiscount ? "Totale" : "Subtotale"}</span>
+              <span className="font-display text-3xl text-bone">{formatEuro(total)} €</span>
             </div>
             <button
               onClick={goToPayment}

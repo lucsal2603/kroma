@@ -65,6 +65,9 @@ export const api = {
   checkout: (payload = {}) => request("/checkout", { method: "POST", auth: true, body: payload }),
   getOrders: () => request("/orders", { auth: true }),
 
+  // --- Sconto di benvenuto ---
+  getWelcomeConfig: () => request("/welcome-config"),
+
   // --- PayPal ---
   getPaypalConfig: () => request("/paypal/config"),
   createPaypalOrder: () => request("/paypal/create-order", { method: "POST", auth: true }),

@@ -15,7 +15,25 @@ const APP_URL = process.env.APP_URL || "https://lucsal2603.github.io/kroma";
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 ora
 
 // Campi pubblici dell'utente (mai esporre password_hash / reset_token)
-const PUBLIC_USER = "id, username, email, is_admin, created_at";
+const PUBLIC_USER = "id, username, email, is_admin, welcome_used, created_at";
+// Versione "vecchia" senza welcome_used: usata come ripiego se la colonna
+// non è ancora stata migrata (così registrazione/login non si rompono).
+const PUBLIC_USER_LEGACY = "id, username, email, is_admin, created_at";
+
+// Esegue una query "con welcome_used" e, se la colonna non esiste (42703),
+// riprova con la versione legacy. `build(cols)` deve restituire [sql, params].
+async function queryWithWelcome(build) {
+  try {
+    const [sql, params] = build(PUBLIC_USER);
+    return await query(sql, params);
+  } catch (e) {
+    if (e.code === "42703") {
+      const [sql, params] = build(PUBLIC_USER_LEGACY);
+      return await query(sql, params);
+    }
+    throw e;
+  }
+}
 
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -44,12 +62,12 @@ router.post("/register", async (req, res) => {
 
     const password_hash = await hashPassword(String(password));
 
-    const { rows } = await query(
+    const { rows } = await queryWithWelcome((cols) => [
       `insert into users (username, email, password_hash)
        values ($1, $2, $3)
-       returning ${PUBLIC_USER}`,
-      [username, email, password_hash]
-    );
+       returning ${cols}`,
+      [username, email, password_hash],
+    ]);
 
     const user = rows[0];
     const token = signToken({ sub: user.id, username: user.username });
@@ -77,13 +95,13 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ error: "Credenziali mancanti." });
     }
 
-    const { rows } = await query(
-      `select id, username, email, is_admin, password_hash
+    const { rows } = await queryWithWelcome((cols) => [
+      `select ${cols}, password_hash
          from users
         where lower(email) = $1 or lower(username) = $1
         limit 1`,
-      [identifier]
-    );
+      [identifier],
+    ]);
 
     const user = rows[0];
     // Messaggio volutamente generico (non rivelare se l'utente esiste)
@@ -96,10 +114,9 @@ router.post("/login", async (req, res) => {
 
     const token = signToken({ sub: user.id, username: user.username });
 
-    return res.json({
-      user: { id: user.id, username: user.username, email: user.email, is_admin: user.is_admin },
-      token,
-    });
+    // Non esporre l'hash della password al client.
+    const { password_hash, ...publicUser } = user;
+    return res.json({ user: publicUser, token });
   } catch (err) {
     console.error("login error:", err);
     return res.status(500).json({ error: "Errore durante il login." });
@@ -109,10 +126,10 @@ router.post("/login", async (req, res) => {
 // --- GET /user/profile ----------------------------------------------
 router.get("/user/profile", requireAuth, async (req, res) => {
   try {
-    const { rows } = await query(
-      `select ${PUBLIC_USER} from users where id = $1`,
-      [req.user.id]
-    );
+    const { rows } = await queryWithWelcome((cols) => [
+      `select ${cols} from users where id = $1`,
+      [req.user.id],
+    ]);
     if (!rows[0]) return res.status(404).json({ error: "Utente non trovato." });
     return res.json({ user: rows[0] });
   } catch (err) {

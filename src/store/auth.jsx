@@ -7,6 +7,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [ready, setReady] = useState(false); // true quando abbiamo verificato il token salvato
   const [authOpen, setAuthOpen] = useState(false); // pannello accesso/registrazione
+  const [showWelcome, setShowWelcome] = useState(false); // popup sconto benvenuto
 
   // All'avvio: se c'è un token salvato, recupera il profilo.
   useEffect(() => {
@@ -41,16 +42,19 @@ export function AuthProvider({ children }) {
     const { user, token } = await api.register({ username, email, password });
     setToken(token);
     setUser(user);
+    setShowWelcome(true); // nuovo iscritto: mostra il buono di benvenuto
     return user;
   }, []);
 
   const logout = useCallback(() => {
     clearToken();
     setUser(null);
+    setShowWelcome(false);
   }, []);
 
   const openAuth = useCallback(() => setAuthOpen(true), []);
   const closeAuth = useCallback(() => setAuthOpen(false), []);
+  const dismissWelcome = useCallback(() => setShowWelcome(false), []);
 
   const value = useMemo(
     () => ({
@@ -64,8 +68,10 @@ export function AuthProvider({ children }) {
       authOpen,
       openAuth,
       closeAuth,
+      showWelcome,
+      dismissWelcome,
     }),
-    [user, ready, login, register, logout, authOpen, openAuth, closeAuth]
+    [user, ready, login, register, logout, authOpen, openAuth, closeAuth, showWelcome, dismissWelcome]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

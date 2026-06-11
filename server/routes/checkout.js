@@ -7,8 +7,16 @@ import { Router } from "express";
 import { query } from "../db/index.js";
 import { requireAuth } from "../lib/auth.js";
 import { createOrderFromCart, normalizeShipping } from "../lib/orders.js";
+import { WELCOME_PERCENT, WELCOME_HOURS } from "../lib/discount.js";
 
 const router = Router();
+
+// --- GET /welcome-config (pubblica) ---------------------------------
+// Dati dello sconto di benvenuto per il frontend (percentuale + durata).
+// L'idoneità del singolo utente è comunque ricalcolata e forzata lato server.
+router.get("/welcome-config", (_req, res) => {
+  res.json({ percent: WELCOME_PERCENT, hours: WELCOME_HOURS });
+});
 
 router.post("/checkout", requireAuth, async (req, res) => {
   try {
@@ -25,6 +33,9 @@ router.post("/checkout", requireAuth, async (req, res) => {
         id: result.orderId,
         status: result.status,
         total: result.total,
+        subtotal: result.subtotal,
+        discount: result.discount,
+        discountPercent: result.discountPercent,
         items: result.items,
         customerEmail: result.customerEmail,
       },

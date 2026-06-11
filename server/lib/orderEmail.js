@@ -7,7 +7,8 @@ const euro = (n) => "€ " + Number(n).toFixed(2).replace(".", ",");
  * Costruisce l'HTML della conferma ordine.
  * @param {{id:string, total:number, items:Array, customerName?:string}} order
  */
-export function renderOrderEmail({ id, total, items, customerName, shipping }) {
+export function renderOrderEmail({ id, total, items, customerName, shipping, subtotal, discountPercent, discount }) {
+  const hasDiscount = Number(discountPercent) > 0 && Number(discount) > 0;
   const rows = items
     .map(
       (i) => `
@@ -43,6 +44,15 @@ export function renderOrderEmail({ id, total, items, customerName, shipping }) {
       <p>Ciao ${customerName || ""}, grazie per il tuo ordine!</p>
       <p style="color:#888;font-size:13px">Ordine <strong>#${String(id).slice(0, 8).toUpperCase()}</strong></p>
       <table style="width:100%;border-collapse:collapse;margin:16px 0">${rows}
+        ${hasDiscount ? `
+        <tr>
+          <td style="padding:14px 0 0;color:#666">Subtotale</td>
+          <td style="padding:14px 0 0;text-align:right;color:#666">${euro(subtotal)}</td>
+        </tr>
+        <tr>
+          <td style="padding:4px 0 0;color:#1a7f37">Sconto benvenuto (-${discountPercent}%)</td>
+          <td style="padding:4px 0 0;text-align:right;color:#1a7f37">−${euro(discount)}</td>
+        </tr>` : ""}
         <tr>
           <td style="padding:14px 0 0;font-weight:700">Totale</td>
           <td style="padding:14px 0 0;text-align:right;font-weight:700">${euro(total)}</td>
@@ -56,6 +66,7 @@ export function renderOrderEmail({ id, total, items, customerName, shipping }) {
   const text =
     `KROMA — Ordine confermato\nOrdine #${String(id).slice(0, 8).toUpperCase()}\n\n` +
     items.map((i) => `- ${i.name} (${i.color}, ${i.size}) x${i.quantity} = ${euro(i.subtotal)}`).join("\n") +
+    (hasDiscount ? `\n\nSubtotale: ${euro(subtotal)}\nSconto benvenuto (-${discountPercent}%): −${euro(discount)}` : "") +
     `\n\nTotale: ${euro(total)}` +
     (shipping
       ? `\n\nSpedizione:\n${shipping.name}\n${shipping.address}\n${shipping.zip} ${shipping.city} (${shipping.province})` +

@@ -14,6 +14,7 @@ import ProductDetail from "./components/ProductDetail";
 import CartDrawer from "./components/CartDrawer";
 import CookieConsent from "./components/CookieConsent";
 import AdminDashboard from "./components/AdminDashboard";
+import WelcomeOffer from "./components/WelcomeOffer";
 
 // Pannello accesso/registrazione, montato una sola volta e pilotato dal
 // contesto auth — così può essere aperto sia dal Nav sia dal carrello.
@@ -43,6 +44,7 @@ function Shell() {
       <CartDrawer />
       <CookieConsent />
       <AuthModalHost />
+      <WelcomeOffer />
     </div>
   );
 }

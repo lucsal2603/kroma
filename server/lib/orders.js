@@ -4,8 +4,36 @@
 import { pool } from "../db/index.js";
 import { sendOrderConfirmation } from "./orderEmail.js";
 import { sendTelegram } from "./telegram.js";
+import { welcomeDiscountFor, round2 } from "./discount.js";
 
 const euro = (n) => "€ " + Number(n).toFixed(2).replace(".", ",");
+
+// Legge la % di sconto di benvenuto valida per l'utente.
+// È difensiva: se la colonna `welcome_used` non è ancora stata migrata
+// (codice 42703), la funzione resta spenta e restituisce { percent: 0,
+// available: false } senza rompere gli ordini.
+async function readWelcomePercent(db, userId) {
+  try {
+    const { rows } = await db.query(
+      `select created_at, welcome_used from users where id = $1`,
+      [userId]
+    );
+    return { percent: welcomeDiscountFor(rows[0]), available: true };
+  } catch (e) {
+    if (e.code === "42703") return { percent: 0, available: false };
+    throw e;
+  }
+}
+
+// Calcola il preventivo dell'utente: articoli, subtotale, sconto e totale.
+// Non scrive nulla. Usato per mostrare l'importo (es. a PayPal) prima di pagare.
+export async function quoteForUser(userId) {
+  const { items, total: subtotal } = await readCart(userId);
+  const { percent } = await readWelcomePercent(pool, userId);
+  const discount = round2((subtotal * percent) / 100);
+  const total = round2(subtotal - discount);
+  return { items, subtotal, discountPercent: percent, discount, total };
+}
 
 // Normalizza e valida i dati di spedizione. Lancia un errore "previsto"
 // (statusCode 400) se mancano i campi obbligatori.
@@ -89,22 +117,39 @@ export async function createOrderFromCart({
     }
     const email = (customerEmail || user.email).trim().toLowerCase();
 
-    const { items, total } = await readCart(userId);
+    const { items, total: subtotal } = await readCart(userId);
     if (items.length === 0) {
       const e = new Error("Il carrello è vuoto.");
       e.statusCode = 400;
       throw e;
     }
 
+    // Sconto di benvenuto (calcolato fuori transazione per gestire in
+    // sicurezza l'eventuale colonna non ancora migrata).
+    const { percent: discountPercent, available: welcomeAvailable } =
+      await readWelcomePercent(client, userId);
+    const discount = round2((subtotal * discountPercent) / 100);
+    const total = round2(subtotal - discount);
+
     await client.query("begin");
 
+    // Inserisce l'ordine. Include discount_percent solo se la colonna esiste.
+    const orderCols =
+      "user_id, status, total, customer_email, shipping, stripe_payment_intent_id" +
+      (welcomeAvailable ? ", discount_percent" : "");
+    const orderVals = [userId, status, total, email, JSON.stringify(shipping), paymentRef];
+    const orderPh = "$1, $2, $3, $4, $5, $6" + (welcomeAvailable ? ", $7" : "");
+    if (welcomeAvailable) orderVals.push(discountPercent);
     const orderRes = await client.query(
-      `insert into orders (user_id, status, total, customer_email, shipping, stripe_payment_intent_id)
-       values ($1, $2, $3, $4, $5, $6)
-       returning id, created_at`,
-      [userId, status, total, email, JSON.stringify(shipping), paymentRef]
+      `insert into orders (${orderCols}) values (${orderPh}) returning id, created_at`,
+      orderVals
     );
     const orderId = orderRes.rows[0].id;
+
+    // Buono di benvenuto usato una sola volta: lo "consumiamo".
+    if (welcomeAvailable && discountPercent > 0) {
+      await client.query(`update users set welcome_used = true where id = $1`, [userId]);
+    }
 
     for (const i of items) {
       await client.query(
@@ -145,6 +190,9 @@ export async function createOrderFromCart({
       sendOrderConfirmation(email, {
         id: orderId,
         total,
+        subtotal,
+        discountPercent,
+        discount,
         items,
         customerName: user.username,
         shipping,
@@ -153,6 +201,9 @@ export async function createOrderFromCart({
       const tg =
         `🦈 <b>Nuovo ordine KROMA</b>\n` +
         `#${String(orderId).slice(0, 8).toUpperCase()} · ${euro(total)}\n` +
+        (discountPercent > 0
+          ? `Subtotale ${euro(subtotal)} · Sconto benvenuto -${discountPercent}% (−${euro(discount)})\n`
+          : "") +
         `Cliente: ${user.username} (${email})\n\n` +
         `📦 <b>Spedire a:</b>\n` +
         `${shipping.name}\n` +
@@ -164,7 +215,10 @@ export async function createOrderFromCart({
       sendTelegram(tg).catch((e) => console.error("telegram error:", e.message));
     }
 
-    return { orderId, status, total, items, customerEmail: email, username: user.username };
+    return {
+      orderId, status, total, subtotal, discount, discountPercent,
+      items, customerEmail: email, username: user.username,
+    };
   } catch (err) {
     if (!committed) {
       try { await client.query("rollback"); } catch {}

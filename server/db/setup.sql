@@ -16,6 +16,7 @@ create table if not exists users (
   email               text        not null unique,
   password_hash       text        not null,          -- bcrypt
   is_admin            boolean     not null default false, -- true = accede alla dashboard ADMIN
+  welcome_used        boolean     not null default false, -- buono di benvenuto già usato
   reset_token         text,                            -- token recupero password
   reset_token_expires timestamptz,                     -- scadenza del token
   created_at          timestamptz not null default now()
@@ -70,7 +71,8 @@ create table if not exists orders (
   user_id                  uuid        not null references users(id) on delete restrict,
   status                   text        not null default 'pending'
                              check (status in ('pending','paid','failed','shipped','cancelled')),
-  total                    numeric(10,2) not null default 0,    -- EUR
+  total                    numeric(10,2) not null default 0,    -- EUR (già scontato)
+  discount_percent         integer     not null default 0,      -- % sconto applicato (es. benvenuto)
   customer_email           text        not null,                -- email cliente (snapshot)
   shipping                 jsonb,                               -- indirizzo di consegna {name,address,zip,city,province,phone}
   stripe_payment_intent_id text,                                -- riferimento pagamento Stripe
