@@ -7,6 +7,20 @@ import { query } from "../db/index.js";
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 
+// "Proprietario" del sito: l'unico che può disabilitare account e togliere/dare
+// i permessi admin. Configurabile da env, con un default sicuro.
+export const OWNER_EMAIL = (process.env.OWNER_EMAIL || "lukesalvemini@gmail.com").toLowerCase();
+
+// Dato l'id di un utente, dice se è il proprietario (confronto sull'email).
+export async function isOwner(userId) {
+  try {
+    const { rows } = await query(`select email from users where id = $1`, [userId]);
+    return String(rows[0]?.email || "").toLowerCase() === OWNER_EMAIL;
+  } catch {
+    return false;
+  }
+}
+
 if (!JWT_SECRET) {
   throw new Error("JWT_SECRET mancante in server/.env (generalo con: openssl rand -hex 32).");
 }
@@ -58,6 +72,20 @@ export async function requireAdmin(req, res, next) {
     next();
   } catch (err) {
     console.error("requireAdmin error:", err);
+    return res.status(500).json({ error: "Errore di autorizzazione." });
+  }
+}
+
+// --- Middleware: SOLO il proprietario (usare DOPO requireAuth) --------
+// Per le azioni più delicate: disabilitare account, togliere/dare admin.
+export async function requireOwner(req, res, next) {
+  try {
+    if (!(await isOwner(req.user.id))) {
+      return res.status(403).json({ error: "Solo il proprietario del sito può fare questa operazione." });
+    }
+    next();
+  } catch (err) {
+    console.error("requireOwner error:", err);
     return res.status(500).json({ error: "Errore di autorizzazione." });
   }
 }

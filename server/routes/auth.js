@@ -113,6 +113,17 @@ router.post("/login", async (req, res) => {
     const ok = await verifyPassword(String(password), user.password_hash);
     if (!ok) return invalid();
 
+    // Account disabilitato dal proprietario: niente accesso.
+    // Difensivo: se la colonna non è migrata (42703) consideriamo "non disabilitato".
+    try {
+      const { rows: d } = await query(`select disabled from users where id = $1`, [user.id]);
+      if (d[0]?.disabled) {
+        return res.status(403).json({ error: "Questo account è stato disabilitato. Contatta KROMA." });
+      }
+    } catch (e) {
+      if (e.code !== "42703") throw e;
+    }
+
     const token = signToken({ sub: user.id, username: user.username });
 
     // Non esporre l'hash della password al client.

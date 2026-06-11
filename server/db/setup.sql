@@ -16,6 +16,7 @@ create table if not exists users (
   email               text        not null unique,
   password_hash       text        not null,          -- bcrypt
   is_admin            boolean     not null default false, -- true = accede alla dashboard ADMIN
+  disabled            boolean     not null default false, -- true = account bloccato (non può accedere)
   welcome_used        boolean     not null default false, -- buono di benvenuto già usato
   marketing_consent   boolean     not null default false, -- consenso email pubblicitarie (opt-in)
   unsubscribe_token   text,                            -- token per il link "disiscriviti"

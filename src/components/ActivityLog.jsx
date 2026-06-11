@@ -13,6 +13,10 @@ const ACTIONS = {
   "marketing.send": { label: "Email inviata", icon: "✉", cls: "border-volt/40 bg-volt/10 text-volt" },
   "marketing.config": { label: "Impostazioni campagne", icon: "⚙", cls: "border-line text-bone" },
   "user.reveal": { label: "Email iscritto mostrata", icon: "👁", cls: "border-line text-muted" },
+  "user.disable": { label: "Account disabilitato", icon: "🚫", cls: "border-red-500/40 bg-red-500/10 text-red-300" },
+  "user.enable": { label: "Account riabilitato", icon: "✓", cls: "border-volt/40 bg-volt/10 text-volt" },
+  "user.admin.grant": { label: "Reso amministratore", icon: "★", cls: "border-volt/40 bg-volt/10 text-volt" },
+  "user.admin.revoke": { label: "Admin rimosso", icon: "☆", cls: "border-line text-muted" },
 };
 
 const fmt = (iso) =>

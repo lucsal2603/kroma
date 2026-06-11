@@ -5,7 +5,7 @@
 //   DELETE /admin/products/:id     -> elimina un prodotto
 import { Router } from "express";
 import { query } from "../db/index.js";
-import { requireAuth, requireAdmin } from "../lib/auth.js";
+import { requireAuth, requireAdmin, requireOwner, isOwner } from "../lib/auth.js";
 import { logActivity, getActivity } from "../lib/activity.js";
 
 // Forma "pulita" del prodotto per il frontend (uguale a routes/products.js).
@@ -354,6 +354,134 @@ router.get("/admin/users", async (_req, res) => {
   } catch (err) {
     console.error("admin users error:", err);
     return res.status(500).json({ error: "Errore nel recupero degli iscritti." });
+  }
+});
+
+// --- GET /admin/users/:id -------------------------------------------
+// Scheda del singolo iscritto: dati base, da quanto è registrato, i suoi
+// acquisti, e se chi guarda è il proprietario (per mostrare i tasti speciali).
+router.get("/admin/users/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await query(
+      `select id, username, email, is_admin, created_at from users where id = $1`,
+      [id]
+    );
+    const u = rows[0];
+    if (!u) return res.status(404).json({ error: "Iscritto non trovato." });
+
+    // Colonne opzionali: potrebbero non essere ancora migrate.
+    let disabled = false;
+    try {
+      const { rows: d } = await query(`select disabled from users where id = $1`, [id]);
+      disabled = Boolean(d[0]?.disabled);
+    } catch (e) {
+      if (e.code !== "42703") throw e;
+    }
+    let subscribed = null;
+    try {
+      const { rows: m } = await query(`select marketing_consent from users where id = $1`, [id]);
+      subscribed = Boolean(m[0]?.marketing_consent);
+    } catch (e) {
+      if (e.code !== "42703") throw e;
+    }
+
+    // Acquisti dell'utente (più recenti prima).
+    const { rows: orders } = await query(
+      `select o.id, o.status, o.total, o.created_at,
+              coalesce(json_agg(
+                json_build_object('name', p.name, 'color', p.color, 'size', oi.size,
+                                  'quantity', oi.quantity, 'unitPrice', oi.unit_price)
+                order by oi.created_at
+              ) filter (where oi.id is not null), '[]') as items
+         from orders o
+         left join order_items oi on oi.order_id = o.id
+         left join products p     on p.id = oi.product_id
+        where o.user_id = $1
+        group by o.id
+        order by o.created_at desc`,
+      [id]
+    );
+
+    return res.json({
+      user: {
+        id: u.id,
+        username: u.username,
+        email: maskEmail(u.email),
+        isAdmin: Boolean(u.is_admin),
+        disabled,
+        subscribed,
+        createdAt: u.created_at,
+      },
+      orders: orders.map((o) => ({
+        id: o.id,
+        status: o.status,
+        total: Number(o.total),
+        createdAt: o.created_at,
+        items: o.items,
+      })),
+      viewerIsOwner: await isOwner(req.user.id),
+    });
+  } catch (err) {
+    console.error("admin user detail error:", err);
+    return res.status(500).json({ error: "Errore nel recupero dei dati dell'iscritto." });
+  }
+});
+
+// --- PATCH /admin/users/:id/disabled (SOLO proprietario) ------------
+router.patch("/admin/users/:id/disabled", requireOwner, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const disabled = Boolean(req.body?.disabled);
+    if (id === req.user.id && disabled) {
+      return res.status(400).json({ error: "Non puoi disabilitare il tuo stesso account." });
+    }
+    const { rows } = await query(
+      `update users set disabled = $1 where id = $2 returning username`,
+      [disabled, id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Iscritto non trovato." });
+    await logActivity({
+      userId: req.user.id,
+      username: req.user.username,
+      action: disabled ? "user.disable" : "user.enable",
+      detail: rows[0].username,
+    });
+    return res.json({ disabled });
+  } catch (err) {
+    if (err.code === "42703") {
+      return res.status(409).json({
+        error: "Funzione non ancora disponibile: esegui la migrazione (add-user-disabled.sql) su Supabase.",
+      });
+    }
+    console.error("admin disable user error:", err);
+    return res.status(500).json({ error: "Errore nel cambio stato dell'account." });
+  }
+});
+
+// --- PATCH /admin/users/:id/admin (SOLO proprietario) ---------------
+router.patch("/admin/users/:id/admin", requireOwner, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const isAdmin = Boolean(req.body?.isAdmin);
+    if (id === req.user.id && !isAdmin) {
+      return res.status(400).json({ error: "Non puoi togliere l'admin a te stesso." });
+    }
+    const { rows } = await query(
+      `update users set is_admin = $1 where id = $2 returning username`,
+      [isAdmin, id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Iscritto non trovato." });
+    await logActivity({
+      userId: req.user.id,
+      username: req.user.username,
+      action: isAdmin ? "user.admin.grant" : "user.admin.revoke",
+      detail: rows[0].username,
+    });
+    return res.json({ isAdmin });
+  } catch (err) {
+    console.error("admin set-admin error:", err);
+    return res.status(500).json({ error: "Errore nel cambio dei permessi." });
   }
 });
 

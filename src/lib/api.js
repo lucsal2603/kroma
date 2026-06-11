@@ -91,7 +91,12 @@ export const api = {
 
   // --- Admin: iscritti / registro attività ---
   getUsers: () => request("/admin/users", { auth: true }),
+  getUserDetail: (id) => request(`/admin/users/${id}`, { auth: true }),
   revealUserEmail: (id) => request(`/admin/users/${id}/email`, { auth: true }),
+  setUserDisabled: (id, disabled) =>
+    request(`/admin/users/${id}/disabled`, { method: "PATCH", auth: true, body: { disabled } }),
+  setUserAdmin: (id, isAdmin) =>
+    request(`/admin/users/${id}/admin`, { method: "PATCH", auth: true, body: { isAdmin } }),
   getActivity: () => request("/admin/activity", { auth: true }),
 
   // --- Admin: campagne email ---
