@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { formatEuro, hasSale, effectivePrice, salePercent } from "../data/products";
 import { fileToCompressedDataUrl } from "../lib/image";
 import HelmetFlip from "./HelmetFlip";
+import MarketingPanel from "./MarketingPanel";
 import Logo from "./Logo";
 
 // Etichette leggibili per lo stato dell'ordine.
@@ -836,6 +837,7 @@ export default function AdminDashboard() {
           {[
             ["orders", "Ordini ricevuti"],
             ["stock", "Prodotti & giacenza"],
+            ["marketing", "Campagne email"],
           ].map(([key, label]) => (
             <button
               key={key}
@@ -869,6 +871,8 @@ export default function AdminDashboard() {
           <p className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-center font-mono text-sm text-red-300">
             {error}
           </p>
+        ) : tab === "marketing" ? (
+          <MarketingPanel />
         ) : tab === "stock" ? (
           <div className="flex flex-col gap-3">
             {products.map((p) => (

@@ -12,6 +12,7 @@ export default function AuthModal({ open, onClose }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [marketingConsent, setMarketingConsent] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -58,6 +59,14 @@ export default function AuthModal({ open, onClose }) {
         await login({ email: email.trim(), password });
       } else {
         await register({ username: name.trim(), email: email.trim(), password });
+        // Salva il consenso marketing (best-effort: non blocca la registrazione)
+        if (marketingConsent) {
+          try {
+            await api.setMarketingConsent(true);
+          } catch {
+            /* il consenso si può sempre cambiare dopo dal profilo */
+          }
+        }
       }
       // Successo: chiudi e resetta i campi
       onClose();
@@ -174,6 +183,21 @@ export default function AuthModal({ open, onClose }) {
             autoComplete={isLogin ? "current-password" : "new-password"}
             className="rounded-full border border-line bg-ink px-6 py-3.5 font-mono text-sm text-bone placeholder:text-faint transition-colors duration-300 focus:border-volt/60 focus:outline-none"
           />
+
+          {!isLogin && (
+            <label className="mt-1 flex cursor-pointer items-start gap-3 px-1 text-left">
+              <input
+                type="checkbox"
+                checked={marketingConsent}
+                onChange={(e) => setMarketingConsent(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-volt"
+              />
+              <span className="text-muted font-mono text-[0.62rem] leading-relaxed tracking-wide">
+                Voglio ricevere via email le offerte e le novità KROMA. Puoi
+                disiscriverti quando vuoi.
+              </span>
+            </label>
+          )}
 
           {isLogin && (
             <button

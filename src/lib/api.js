@@ -68,6 +68,10 @@ export const api = {
   // --- Sconto di benvenuto ---
   getWelcomeConfig: () => request("/welcome-config"),
 
+  // --- Marketing (consenso cliente) ---
+  setMarketingConsent: (consent) =>
+    request("/user/marketing", { method: "PATCH", auth: true, body: { consent } }),
+
   // --- PayPal ---
   getPaypalConfig: () => request("/paypal/config"),
   createPaypalOrder: () => request("/paypal/create-order", { method: "POST", auth: true }),
@@ -84,6 +88,12 @@ export const api = {
     request(`/admin/products/${productId}`, { method: "PATCH", auth: true, body: payload }),
   deleteProduct: (productId) =>
     request(`/admin/products/${productId}`, { method: "DELETE", auth: true }),
+
+  // --- Admin: campagne email ---
+  getMarketing: () => request("/admin/marketing", { auth: true }),
+  updateMarketing: (config) =>
+    request("/admin/marketing", { method: "PATCH", auth: true, body: config }),
+  sendMarketingNow: () => request("/admin/marketing/send", { method: "POST", auth: true }),
 };
 
 export { API_BASE };

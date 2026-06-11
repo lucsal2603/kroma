@@ -17,6 +17,8 @@ create table if not exists users (
   password_hash       text        not null,          -- bcrypt
   is_admin            boolean     not null default false, -- true = accede alla dashboard ADMIN
   welcome_used        boolean     not null default false, -- buono di benvenuto già usato
+  marketing_consent   boolean     not null default false, -- consenso email pubblicitarie (opt-in)
+  unsubscribe_token   text,                            -- token per il link "disiscriviti"
   reset_token         text,                            -- token recupero password
   reset_token_expires timestamptz,                     -- scadenza del token
   created_at          timestamptz not null default now()
@@ -94,6 +96,28 @@ create table if not exists order_items (
 );
 
 create index if not exists idx_order_items_order on order_items (order_id);
+
+-- =====================================================================
+-- CAMPAGNE EMAIL (marketing)
+-- =====================================================================
+create table if not exists marketing_config (
+  id            boolean primary key default true check (id),
+  interval_days integer     not null default 7,
+  auto_enabled  boolean     not null default false,
+  last_sent_at  timestamptz
+);
+insert into marketing_config (id) values (true) on conflict (id) do nothing;
+
+create table if not exists marketing_sends (
+  id         uuid        primary key default gen_random_uuid(),
+  subject    text,
+  recipients integer     not null default 0,
+  trigger    text        not null default 'manual',
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_users_unsub            on users (unsubscribe_token);
+create index if not exists idx_marketing_sends_created on marketing_sends (created_at desc);
 
 -- =====================================================================
 -- SEED — i tre caschi ARAI SZ-R EVO (allineati a src/data/products.js)
