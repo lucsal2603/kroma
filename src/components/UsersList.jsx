@@ -340,12 +340,13 @@ export default function UsersList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedId, setSelectedId] = useState(null);
+  const [q, setQ] = useState("");
 
-  const load = async () => {
+  const load = async (term = q) => {
     setLoading(true);
     setError("");
     try {
-      const { users: u } = await api.getUsers();
+      const { users: u } = await api.getUsers(term);
       setUsers(u || []);
     } catch (err) {
       setError(err.message);
@@ -354,48 +355,64 @@ export default function UsersList() {
     }
   };
 
+  // Ricerca "live" con un piccolo ritardo, per non chiamare il server a ogni tasto.
   useEffect(() => {
-    load();
-  }, []);
+    const t = setTimeout(() => load(q), 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
-        <span className="h-6 w-6 animate-spin rounded-full border-2 border-volt border-t-transparent" />
-        <p className="text-muted font-mono text-xs tracking-wider uppercase">Carico gli iscritti…</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <p className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-center font-mono text-sm text-red-300">
-        {error}
-      </p>
-    );
-  }
-
-  if (users.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
-        <span className="text-4xl">🦈</span>
-        <p className="text-muted text-sm">Nessun iscritto, per ora.</p>
-      </div>
-    );
-  }
+  // Lo spinner a tutto schermo solo al primissimo caricamento: durante la
+  // ricerca teniamo a video la lista precedente (niente sfarfallio).
+  const firstLoad = loading && users.length === 0 && !error;
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-faint font-mono text-[0.62rem] tracking-wide">
-        {users.length} {users.length === 1 ? "iscritto" : "iscritti"} · tocca un iscritto per i dettagli ·
-        l'email è oscurata per privacy.
-      </p>
-      {users.map((u, i) => (
-        <UserRow key={u.id || i} user={u} onOpen={setSelectedId} />
-      ))}
+      {/* Barra di ricerca: per nome o email */}
+      <div className="relative">
+        <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-muted">🔍</span>
+        <input
+          type="search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Cerca per nome o email…"
+          className="w-full rounded-2xl border border-line bg-elevated py-3 pr-4 pl-11 text-bone outline-none placeholder:text-faint focus:border-volt/60"
+        />
+        {loading && !firstLoad && (
+          <span className="absolute top-1/2 right-4 h-4 w-4 -translate-y-1/2 animate-spin rounded-full border-2 border-volt border-t-transparent" />
+        )}
+      </div>
+
+      {error ? (
+        <p className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-center font-mono text-sm text-red-300">
+          {error}
+        </p>
+      ) : firstLoad ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+          <span className="h-6 w-6 animate-spin rounded-full border-2 border-volt border-t-transparent" />
+          <p className="text-muted font-mono text-xs tracking-wider uppercase">Carico gli iscritti…</p>
+        </div>
+      ) : users.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+          <span className="text-4xl">🦈</span>
+          <p className="text-muted text-sm">
+            {q ? `Nessun iscritto trovato per «${q}».` : "Nessun iscritto, per ora."}
+          </p>
+        </div>
+      ) : (
+        <>
+          <p className="text-faint font-mono text-[0.62rem] tracking-wide">
+            {users.length} {users.length === 1 ? "iscritto" : "iscritti"}
+            {q ? " trovati" : ""} · tocca un iscritto per i dettagli · l'email è oscurata per privacy.
+          </p>
+          {users.map((u, i) => (
+            <UserRow key={u.id || i} user={u} onOpen={setSelectedId} />
+          ))}
+        </>
+      )}
 
       {selectedId && (
-        <UserDetail userId={selectedId} onClose={() => setSelectedId(null)} onChanged={load} />
+        <UserDetail userId={selectedId} onClose={() => setSelectedId(null)} onChanged={() => load(q)} />
       )}
     </div>
   );

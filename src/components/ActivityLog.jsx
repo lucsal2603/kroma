@@ -108,15 +108,17 @@ export default function ActivityLog() {
     <div className="flex flex-col gap-2.5">
       {logs.map((l, i) => {
         const a = ACTIONS[l.action] || { label: l.action, icon: "•", cls: "border-line text-muted" };
+        const color = colorForName(l.username, l.isOwner);
         return (
           <div
             key={i}
-            className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-elevated p-3 sm:p-4"
+            className="flex flex-wrap items-center gap-3 rounded-2xl border bg-elevated p-3 sm:p-4"
+            // Cornice e sfondo tinti col colore dell'utente che ha fatto l'azione.
+            style={{ borderColor: color + "66", backgroundColor: color + "0d" }}
           >
             <span
-              className={
-                "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border font-mono text-sm " + a.cls
-              }
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border font-mono text-sm"
+              style={{ borderColor: color + "66", backgroundColor: color + "1a", color }}
             >
               {a.icon}
             </span>
@@ -125,11 +127,14 @@ export default function ActivityLog() {
                 <span className="font-semibold">{a.label}</span>
                 {l.detail && <span className="text-muted"> · {l.detail}</span>}
               </div>
-              <div className="text-faint font-mono text-[0.62rem] tracking-wide">
-                <span className="font-semibold" style={{ color: colorForName(l.username, l.isOwner) }}>
+              <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[0.62rem] tracking-wide">
+                <span
+                  className="rounded-md px-1.5 py-0.5 font-semibold"
+                  style={{ color, backgroundColor: color + "1f" }}
+                >
                   {l.username || "—"}
-                </span>{" "}
-                · {fmt(l.createdAt)}
+                </span>
+                <span className="text-faint">· {fmt(l.createdAt)}</span>
               </div>
             </div>
           </div>

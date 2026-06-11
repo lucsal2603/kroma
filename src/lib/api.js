@@ -90,7 +90,8 @@ export const api = {
     request(`/admin/products/${productId}`, { method: "DELETE", auth: true }),
 
   // --- Admin: iscritti / registro attività ---
-  getUsers: () => request("/admin/users", { auth: true }),
+  getUsers: (q = "") =>
+    request("/admin/users" + (q ? `?q=${encodeURIComponent(q)}` : ""), { auth: true }),
   getUserDetail: (id) => request(`/admin/users/${id}`, { auth: true }),
   revealUserEmail: (id) => request(`/admin/users/${id}/email`, { auth: true }),
   setUserDisabled: (id, disabled) =>

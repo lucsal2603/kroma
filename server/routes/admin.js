@@ -328,18 +328,27 @@ router.patch("/admin/products/:id", async (req, res) => {
 
 // --- GET /admin/users -----------------------------------------------
 // Elenco degli iscritti: solo nome ed email MASCHERATA (privacy).
-router.get("/admin/users", async (_req, res) => {
+router.get("/admin/users", async (req, res) => {
   try {
+    // Ricerca opzionale per nome o email (il match sull'email avviene qui sul
+    // server, così possiamo confrontare l'email VERA senza mai inviarla in chiaro).
+    const q = String(req.query.q || "").trim();
+    const params = [];
+    let where = "";
+    if (q) {
+      params.push(`%${q}%`);
+      where = ` where username ilike $1 or email ilike $1`;
+    }
     // marketing_consent può non essere migrato: ripiego senza quella colonna.
     const build = (consentCol) =>
       `select id, username, email, is_admin, created_at${consentCol}
-         from users order by created_at desc`;
+         from users${where} order by created_at desc`;
     let rows;
     try {
-      ({ rows } = await query(build(", marketing_consent")));
+      ({ rows } = await query(build(", marketing_consent"), params));
     } catch (e) {
       if (e.code !== "42703") throw e;
-      ({ rows } = await query(build("")));
+      ({ rows } = await query(build(""), params));
     }
     return res.json({
       users: rows.map((u) => ({
