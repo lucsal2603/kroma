@@ -332,7 +332,7 @@ router.get("/admin/users", async (_req, res) => {
   try {
     // marketing_consent può non essere migrato: ripiego senza quella colonna.
     const build = (consentCol) =>
-      `select username, email, is_admin, created_at${consentCol}
+      `select id, username, email, is_admin, created_at${consentCol}
          from users order by created_at desc`;
     let rows;
     try {
@@ -343,6 +343,7 @@ router.get("/admin/users", async (_req, res) => {
     }
     return res.json({
       users: rows.map((u) => ({
+        id: u.id,
         username: u.username,
         email: maskEmail(u.email),
         isAdmin: Boolean(u.is_admin),
@@ -353,6 +354,27 @@ router.get("/admin/users", async (_req, res) => {
   } catch (err) {
     console.error("admin users error:", err);
     return res.status(500).json({ error: "Errore nel recupero degli iscritti." });
+  }
+});
+
+// --- GET /admin/users/:id/email -------------------------------------
+// Rivela l'email in chiaro di un singolo iscritto (su richiesta dell'admin).
+// L'azione viene registrata nel registro attività per trasparenza.
+router.get("/admin/users/:id/email", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await query(`select username, email from users where id = $1`, [id]);
+    if (!rows[0]) return res.status(404).json({ error: "Iscritto non trovato." });
+    await logActivity({
+      userId: req.user.id,
+      username: req.user.username,
+      action: "user.reveal",
+      detail: rows[0].username,
+    });
+    return res.json({ email: rows[0].email });
+  } catch (err) {
+    console.error("admin reveal email error:", err);
+    return res.status(500).json({ error: "Errore nel recupero dell'email." });
   }
 });
 

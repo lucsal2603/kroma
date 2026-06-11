@@ -12,6 +12,7 @@ const ACTIONS = {
   "discount.remove": { label: "Sconto rimosso", icon: "%", cls: "border-line text-muted" },
   "marketing.send": { label: "Email inviata", icon: "✉", cls: "border-volt/40 bg-volt/10 text-volt" },
   "marketing.config": { label: "Impostazioni campagne", icon: "⚙", cls: "border-line text-bone" },
+  "user.reveal": { label: "Email iscritto mostrata", icon: "👁", cls: "border-line text-muted" },
 };
 
 const fmt = (iso) =>

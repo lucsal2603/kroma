@@ -91,6 +91,7 @@ export const api = {
 
   // --- Admin: iscritti / registro attività ---
   getUsers: () => request("/admin/users", { auth: true }),
+  revealUserEmail: (id) => request(`/admin/users/${id}/email`, { auth: true }),
   getActivity: () => request("/admin/activity", { auth: true }),
 
   // --- Admin: campagne email ---
