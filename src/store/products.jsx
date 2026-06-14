@@ -32,18 +32,36 @@ export function ProductsProvider({ children }) {
 
   useEffect(() => {
     let active = true;
+
+    // Render (piano gratuito) si "addormenta" dopo un po' di inattività e al
+    // primo accesso ci mette qualche decina di secondi a svegliarsi. Per non
+    // costringere l'utente a ricaricare la pagina 2-3 volte, qui riproviamo
+    // da soli con attese crescenti finché il motore non risponde con la lista
+    // vera (che include anche i prodotti aggiunti di recente).
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const RETRY_DELAYS = [0, 2000, 3000, 4000, 6000, 8000, 10000, 12000]; // ~45s in totale
+
     (async () => {
-      try {
-        const { products: list } = await api.getProducts();
-        if (active && Array.isArray(list) && list.length) {
-          setProducts(mergeWithLocal(list));
+      for (let i = 0; i < RETRY_DELAYS.length; i++) {
+        if (RETRY_DELAYS[i]) await wait(RETRY_DELAYS[i]);
+        if (!active) return;
+        try {
+          const { products: list } = await api.getProducts();
+          if (!active) return;
+          if (Array.isArray(list) && list.length) {
+            setProducts(mergeWithLocal(list));
+            setLoading(false);
+            return; // riuscito: smettiamo di riprovare
+          }
+        } catch {
+          // Motore ancora non raggiungibile (probabilmente si sta svegliando):
+          // restiamo sulla lista statica e riproviamo al giro successivo.
         }
-      } catch {
-        // Motore non raggiungibile: restiamo sulla lista statica.
-      } finally {
-        if (active) setLoading(false);
       }
+      // Esauriti i tentativi: il sito resta utilizzabile con la lista statica.
+      if (active) setLoading(false);
     })();
+
     return () => {
       active = false;
     };

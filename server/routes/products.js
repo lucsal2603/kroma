@@ -32,6 +32,9 @@ function toProduct(r) {
 // --- GET /products --------------------------------------------------
 router.get("/products", async (_req, res) => {
   try {
+    // Niente cache: la lista prodotti deve essere sempre fresca, così un
+    // prodotto appena aggiunto dall'admin appare subito a tutti.
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate");
     const { rows } = await query(`select * from products order by code`);
     return res.json({ products: rows.map(toProduct) });
   } catch (err) {

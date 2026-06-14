@@ -44,6 +44,9 @@ async function request(path, { method = "GET", body, auth = false } = {}) {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
+      // Mai servire dati vecchi dalla cache del browser (es. Safari su iPhone):
+      // chiediamo sempre la versione aggiornata al server.
+      cache: "no-store",
     });
   } catch {
     throw new Error("Impossibile contattare il server. Riprova tra poco.");
